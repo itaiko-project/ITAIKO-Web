@@ -5,6 +5,7 @@ import { useDeviceConfig } from "@/hooks/useDeviceConfig";
 import { useDeviceStreaming, type TriggerState, type StreamingMode } from "@/hooks/useDeviceStreaming";
 import { useKeyboardInput } from "@/hooks/useKeyboardInput";
 import { useFirmwareUpdate, type FirmwareInfo, type UpdateStatus } from "@/hooks/useFirmwareUpdate";
+import { useGameIntegration, type GameIntegrationState } from "@/hooks/useGameIntegration";
 import {
   DeviceCommand,
   type ConnectionStatus,
@@ -74,6 +75,9 @@ interface DeviceContextValue {
     modalOpen: boolean;
     setModalOpen: (open: boolean) => void;
   };
+
+  // Game Integration
+  gameIntegration: GameIntegrationState;
 }
 
 const DeviceContext = createContext<DeviceContextValue | null>(null);
@@ -113,6 +117,11 @@ export function DeviceProvider({ children }: DeviceProviderProps) {
   }), [streaming.triggers, keyboardTriggers]);
 
   const firmwareUpdate = useFirmwareUpdate(deviceConfig.config.firmwareVersion);
+
+  const gameIntegration = useGameIntegration({
+    sendCommand: serial.sendCommand,
+    isConnected,
+  });
 
   // Track previous connection state to detect new connections
   const wasConnectedRef = useRef(false);
@@ -314,8 +323,11 @@ export function DeviceProvider({ children }: DeviceProviderProps) {
         modalOpen,
         setModalOpen,
       },
+
+      // Game Integration
+      gameIntegration,
     }),
-    [serial, deviceConfig, streaming, isConnected, isReady, firmwareUpdate, modalOpen]
+    [serial, deviceConfig, streaming, isConnected, isReady, firmwareUpdate, modalOpen, gameIntegration]
   );
 
   return (

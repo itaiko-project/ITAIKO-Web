@@ -6,6 +6,7 @@ import { FirmwareUpdatePanel } from "@/components/connection/FirmwareUpdatePanel
 import { FirmwareUpdateModal } from "@/components/connection/FirmwareUpdateModal";
 import { ConfigurationTab } from "@/components/configuration/ConfigurationTab";
 import { LiveMonitorTab } from "@/components/monitor/LiveMonitorTab";
+import { GameIntegrationTab } from "@/components/gameintegration/GameIntegrationTab";
 import { initializeHelpContent } from "@/lib/help-content";
 
 // Initialize help content
@@ -53,12 +54,15 @@ function ConfigurePageContent() {
               <LiveMonitorTab />
             </TabsContent>
 
-            {/* Firmware Update Panel */}
+            <TabsContent value="game" className="mt-0">
+              <GameIntegrationTab />
+            </TabsContent>
 
             {/* Tabs at bottom */}
-            <TabsList className="grid w-full grid-cols-2 mt-6">
+            <TabsList className="grid w-full grid-cols-3 mt-6">
               <TabsTrigger value="config">Configuration</TabsTrigger>
               <TabsTrigger value="monitor">Live Monitor</TabsTrigger>
+              <TabsTrigger value="game">Game</TabsTrigger>
             </TabsList>
           </Tabs>
         </main>

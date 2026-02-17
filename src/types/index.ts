@@ -24,6 +24,15 @@ export const DeviceCommand = {
   BOOT_SCREEN_CHUNK: 3001, // Deprecated
   BOOT_SCREEN_SAVE: 3002,  // Deprecated
   BOOT_SCREEN_CLEAR: 3003,
+                                                
+                                                                          
+  
+  // Game Integration (tosu)
+  TOSU_MODE_ON: 4000,
+  TOSU_MODE_OFF: 4001,
+  TOSU_GREAT: 4010,
+  TOSU_OK: 4011,
+  TOSU_MISS: 4012,
 } as const;
 
 export type DeviceCommand = (typeof DeviceCommand)[keyof typeof DeviceCommand];
