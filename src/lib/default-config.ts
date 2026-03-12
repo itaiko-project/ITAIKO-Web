@@ -25,10 +25,10 @@ export const DEFAULT_DEVICE_CONFIG: DeviceConfig = {
       kaRight: 0x0e,  // K
     },
     drumP2: {
-      kaLeft: 0x06,   // C
-      donLeft: 0x05,  // B
-      donRight: 0x11, // N
-      kaRight: 0x36,  // ,
+      kaLeft: 0x1d,   // Z
+      donLeft: 0x1b,  // X
+      donRight: 0x06, // C
+      kaRight: 0x19,  // V
     },
     controller: {
       up: 0x52,       // Up Arrow

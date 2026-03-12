@@ -8,6 +8,7 @@ import { PadConfigGroup } from "./PadConfigGroup";
 import { TimingSettings } from "./TimingSettings";
 import { ADCChannelSettings } from "./ADCChannelSettings";
 import { InteractiveKeyMapping } from "./InteractiveKeyMapping";
+import { DrumKeyMapping } from "./DrumKeyMapping";
 import { BootScreenEditor } from "./BootScreenEditor";
 import { PAD_NAMES, PAD_COLORS } from "@/types";
 import { HelpButton } from "@/components/ui/help-modal";
@@ -225,6 +226,9 @@ export function ConfigurationTab() {
             ))}
           </div>
         </div>
+
+        {/* Drum Key Bindings - Always visible */}
+        <DrumKeyMapping />
 
         {/* Advanced Settings */}
         {advancedMode && (
