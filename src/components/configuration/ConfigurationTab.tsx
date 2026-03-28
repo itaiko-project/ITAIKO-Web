@@ -23,6 +23,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useSearchParams } from "react-router-dom";
+import { KeyboardModeHelperModal, shouldShowKeyboardHelper } from "./KeyboardModeHelperModal";
 
 export function ConfigurationTab() {
   const {
@@ -45,7 +46,18 @@ export function ConfigurationTab() {
   const [advancedMode, setAdvancedModeState] = useState(advancedParam === "true");
   const [showResetDialog, setShowResetDialog] = useState(false);
   const [backupReset, setBackupReset] = useState(true);
+  const [showHelperModal, setShowHelperModal] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Show keyboard mode helper after 60s if still not connected
+  useEffect(() => {
+    if (isReady) return;
+    if (!shouldShowKeyboardHelper()) return;
+    const timer = setTimeout(() => {
+      if (!isReady) setShowHelperModal(true);
+    }, 60_000);
+    return () => clearTimeout(timer);
+  }, [isReady]);
 
   const handleImportClick = () => {
     fileInputRef.current?.click();
@@ -161,9 +173,12 @@ export function ConfigurationTab() {
         {/* Connect Overlay - Centered over the drum */}
         {!isReady && (
           <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
-            <div className="bg-background/80 backdrop-blur-md px-6 py-3 rounded-2xl border shadow-sm text-center">
+            <div className="bg-background/80 backdrop-blur-md px-6 py-3 rounded-2xl border shadow-sm text-center space-y-2">
               <p className="text-lg font-semibold">Connect your drum</p>
-              <p className="text-xs text-muted-foreground mt-1">to start configuration</p>
+              <p className="text-xs text-muted-foreground">to start configuration</p>
+              <p className="text-xs font-semibold text-amber-500 animate-pulse">
+                ⚠ Set the drum to Keyboard mode before connecting
+              </p>
             </div>
           </div>
         )}
@@ -325,6 +340,11 @@ export function ConfigurationTab() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <KeyboardModeHelperModal
+        open={showHelperModal}
+        onClose={() => setShowHelperModal(false)}
+      />
     </div>
   );
 }
