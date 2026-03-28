@@ -10,7 +10,7 @@ import { ADCChannelSettings } from "./ADCChannelSettings";
 import { InteractiveKeyMapping } from "./InteractiveKeyMapping";
 import { DrumKeyMapping } from "./DrumKeyMapping";
 import { BootScreenEditor } from "./BootScreenEditor";
-import { PS4AuthGenerator } from "./PS4AuthGenerator";
+import { PS4AuthSetup } from "./PS4AuthSetup";
 import { PAD_NAMES, PAD_COLORS } from "@/types";
 import { HelpButton } from "@/components/ui/help-modal";
 import { HitHistoryGrid } from "@/components/visual/HitHistoryGrid";
@@ -173,8 +173,7 @@ export function ConfigurationTab() {
       {/* Hit History Grid - Always visible when connected */}
       <HitHistoryGrid />
 
-      {/* PS4 Auth Debug Tool - always available for parity checks */}
-      <PS4AuthGenerator />
+      <PS4AuthSetup />
 
       {/* Configuration Settings - Deactivated when not ready */}
       <div className={`space-y-6 transition-all duration-500 ${!isReady ? "pointer-events-none opacity-50" : ""}`}>
