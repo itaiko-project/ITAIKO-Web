@@ -10,10 +10,11 @@ import { ADCChannelSettings } from "./ADCChannelSettings";
 import { InteractiveKeyMapping } from "./InteractiveKeyMapping";
 import { DrumKeyMapping } from "./DrumKeyMapping";
 import { PS4AuthSetup } from "./PS4AuthSetup";
+import { BackupRestore } from "./BackupRestore";
 import { PAD_NAMES, PAD_COLORS } from "@/types";
 import { HelpButton } from "@/components/ui/help-modal";
 import { HitHistoryGrid } from "@/components/visual/HitHistoryGrid";
-import { RotateCcw, Download, Upload } from "lucide-react";
+import { RotateCcw } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -36,8 +37,6 @@ export function ConfigurationTab() {
     configDirty,
     resetPadThresholds,
     resetToDefaults,
-    exportConfig,
-    importConfig,
   } = useDevice();
 
   const [searchParams, setSearchParams] = useSearchParams();
@@ -45,9 +44,7 @@ export function ConfigurationTab() {
 
   const [advancedMode, setAdvancedModeState] = useState(advancedParam === "true");
   const [showResetDialog, setShowResetDialog] = useState(false);
-  const [backupReset, setBackupReset] = useState(true);
   const [showHelperModal, setShowHelperModal] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Show keyboard mode helper after 60s if still not connected
   useEffect(() => {
@@ -59,23 +56,7 @@ export function ConfigurationTab() {
     return () => clearTimeout(timer);
   }, [isReady]);
 
-  const handleImportClick = () => {
-    fileInputRef.current?.click();
-  };
-
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      await importConfig(file);
-      // Reset input so the same file can be selected again
-      e.target.value = "";
-    }
-  };
-
   const handleFactoryReset = () => {
-    if (backupReset) {
-      void exportConfig();
-    }
     resetToDefaults();
     setShowResetDialog(false);
   };
@@ -262,42 +243,7 @@ export function ConfigurationTab() {
         )}
 
         {/* Import/Export Config */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Backup & Restore</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex gap-2">
-              <input
-                type="file"
-                ref={fileInputRef}
-                onChange={handleFileChange}
-                accept=".json"
-                className="hidden"
-              />
-              <Button
-                variant="outline"
-                className="flex-1"
-                onClick={handleImportClick}
-              >
-                <Upload className="mr-2 h-4 w-4" />
-                Import Config
-              </Button>
-              <Button
-                variant="outline"
-                className="flex-1"
-                onClick={exportConfig}
-              >
-                <Download className="mr-2 h-4 w-4" />
-                Export Config
-              </Button>
-            </div>
-
-            <p className="text-xs text-muted-foreground mt-2">
-              Export your current configuration to a JSON file, or import a previously saved config. It will not include your custom logo.
-            </p>
-          </CardContent>
-        </Card>
+        <BackupRestore />
       </div>
 
       {/* Mode Toggle - Always accessible */}
@@ -328,11 +274,6 @@ export function ConfigurationTab() {
               Are you sure you want to reset all configuration settings to their default values? This action cannot be undone.
             </DialogDescription>
           </DialogHeader>
-
-          <div className="flex items-center space-x-2 py-4">
-            <Switch id="backup-reset" checked={backupReset} onCheckedChange={setBackupReset} />
-            <Label htmlFor="backup-reset">Backup configuration before resetting</Label>
-          </div>
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowResetDialog(false)}>Cancel</Button>

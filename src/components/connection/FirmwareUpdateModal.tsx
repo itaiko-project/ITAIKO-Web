@@ -17,6 +17,7 @@ export function FirmwareUpdateModal() {
   const { firmwareUpdate, isConnected, exportConfig } = useDevice();
   const { status, progress, error, latestFirmware, modalOpen, setModalOpen, installUpdate } = firmwareUpdate;
   const [backupEnabled, setBackupEnabled] = useState(true);
+  const [isExporting, setIsExporting] = useState(false);
 
   // Track if we reached 'complete' status to auto-close on reconnect
   const wasCompleteRef = useRef(false);
@@ -47,7 +48,9 @@ export function FirmwareUpdateModal() {
 
   const handleStartUpdate = async () => {
     if (backupEnabled) {
+      setIsExporting(true);
       await exportConfig();
+      setIsExporting(false);
     }
     await installUpdate();
   };
@@ -76,9 +79,14 @@ export function FirmwareUpdateModal() {
                  </ol>
                </div>
 
-               <div className="flex items-center space-x-2 py-4 border-t">
-                 <Switch id="backup-update" checked={backupEnabled} onCheckedChange={setBackupEnabled} />
-                 <Label htmlFor="backup-update">Backup configuration before updating</Label>
+               <div className="flex items-start space-x-2 py-4 border-t">
+                 <Switch id="backup-update" checked={backupEnabled} onCheckedChange={setBackupEnabled} className="mt-0.5" />
+                 <div>
+                   <Label htmlFor="backup-update">Backup configuration before updating</Label>
+                   <p className="text-xs text-muted-foreground mt-0.5">
+                     May take a few seconds if a PS4 auth key is stored.
+                   </p>
+                 </div>
                </div>
             </div>
           )}
@@ -167,8 +175,13 @@ export function FirmwareUpdateModal() {
         <DialogFooter className="sm:justify-between">
            {status === 'available' ? (
              <>
-               <Button variant="outline" onClick={() => setModalOpen(false)}>Cancel</Button>
-               <Button onClick={handleStartUpdate}>Start Update</Button>
+               <Button variant="outline" onClick={() => setModalOpen(false)} disabled={isExporting}>Cancel</Button>
+               <Button onClick={handleStartUpdate} disabled={isExporting}>
+                 {isExporting
+                   ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Exporting backup...</>
+                   : "Start Update"
+                 }
+               </Button>
              </>
            ) : status === 'complete' ? (
              <Button className="w-full" onClick={() => setModalOpen(false)}>Close</Button>

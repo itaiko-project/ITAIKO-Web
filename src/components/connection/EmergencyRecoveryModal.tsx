@@ -37,6 +37,7 @@ export function EmergencyRecoveryModal({ open, onOpenChange }: EmergencyRecovery
   const [status, setStatus] = useState<RecoveryStatus>('idle');
   const [error, setError] = useState<string | null>(null);
   const [backupEnabled, setBackupEnabled] = useState(true);
+  const [isExporting, setIsExporting] = useState(false);
 
   // Pre-fetched data
   const nukeBlobRef = useRef<Blob | null>(null);
@@ -71,7 +72,9 @@ export function EmergencyRecoveryModal({ open, onOpenChange }: EmergencyRecovery
     setError(null);
 
     if (isConnected && backupEnabled) {
+      setIsExporting(true);
       await exportConfig();
+      setIsExporting(false);
     }
 
     try {
@@ -363,10 +366,12 @@ export function EmergencyRecoveryModal({ open, onOpenChange }: EmergencyRecovery
       case 'idle':
         return (
           <>
-            <Button variant="outline" onClick={() => handleOpenChange(false)}>Cancel</Button>
-            <Button variant="destructive" onClick={handleStartRecovery}>
-              <Skull className="h-4 w-4 mr-2" />
-              {isConnected ? 'Start Recovery' : 'Start Recovery (Device in Bootsel)'}
+            <Button variant="outline" onClick={() => handleOpenChange(false)} disabled={isExporting}>Cancel</Button>
+            <Button variant="destructive" onClick={handleStartRecovery} disabled={isExporting}>
+              {isExporting
+                ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Exporting backup...</>
+                : <><Skull className="h-4 w-4 mr-2" />{isConnected ? 'Start Recovery' : 'Start Recovery (Device in Bootsel)'}</>
+              }
             </Button>
           </>
         );

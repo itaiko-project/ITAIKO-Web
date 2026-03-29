@@ -96,6 +96,7 @@ export function DeviceProvider({ children }: DeviceProviderProps) {
     sendBinary: serial.sendBinary,
     readUntilTimeout: serial.readUntilTimeout,
     clearBuffer: serial.clearBuffer,
+    disconnect: serial.disconnect,
     isConnected,
   });
 

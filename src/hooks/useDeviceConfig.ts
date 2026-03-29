@@ -27,6 +27,7 @@ interface UseDeviceConfigProps {
   sendBinary?: (data: Uint8Array) => Promise<void>;
   readUntilTimeout: (timeoutMs?: number) => Promise<string>;
   clearBuffer?: () => void;
+  disconnect?: () => Promise<void>;
   isConnected: boolean;
 }
 
@@ -100,6 +101,7 @@ export function useDeviceConfig({
   sendBinary,
   readUntilTimeout,
   clearBuffer,
+  disconnect,
   isConnected,
 }: UseDeviceConfigProps): UseDeviceConfigReturn {
   const [config, setConfig] = useState<DeviceConfig>(DEFAULT_DEVICE_CONFIG);
@@ -402,6 +404,9 @@ export function useDeviceConfig({
       let authOk = true;
       if (imported.ps4Auth && isConnected) {
         authOk = await uploadPs4Auth(imported.ps4Auth);
+        if (authOk) {
+          await disconnect?.();
+        }
       }
 
       setConfig(nextConfig);
