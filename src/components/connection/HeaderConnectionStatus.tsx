@@ -1,8 +1,7 @@
 import { useEffect, useState } from "react";
 import { useDevice } from "@/context/DeviceContext";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Usb, AlertCircle, Skull } from "lucide-react";
+import { AlertCircle, Skull } from "lucide-react";
 import { toast } from "sonner";
 import { EmergencyRecoveryModal } from "./EmergencyRecoveryModal";
 
@@ -63,27 +62,6 @@ export function HeaderConnectionStatus() {
 
   return (
     <div className="flex items-center gap-2">
-      <Usb className="h-4 w-4 text-muted-foreground" />
-      <Badge
-        variant={
-          status === "connected"
-            ? "default"
-            : status === "connecting"
-              ? "secondary"
-              : status === "error"
-                ? "destructive"
-                : "outline"
-        }
-        className="text-xs"
-      >
-        {status === "connected"
-          ? "Connected"
-          : status === "connecting"
-            ? "Connecting..."
-            : status === "error"
-              ? "Error"
-              : "Disconnected"}
-      </Badge>
       {isConnected && config.firmwareVersion && (
         <span className="text-xs text-muted-foreground font-mono">
           v{config.firmwareVersion}
@@ -100,9 +78,10 @@ export function HeaderConnectionStatus() {
       </Button>
       <Button
         onClick={handleConnect}
-        variant={isConnected ? "ghost" : "default"}
+        variant={isConnected ? undefined : "default"}
         size="sm"
         disabled={status === "connecting"}
+        className={isConnected ? "bg-amber-500 text-black hover:bg-amber-600" : ""}
       >
         {isConnected ? "Disconnect" : "Connect"}
       </Button>

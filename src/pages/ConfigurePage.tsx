@@ -6,6 +6,8 @@ import { FirmwareUpdatePanel } from "@/components/connection/FirmwareUpdatePanel
 import { FirmwareUpdateModal } from "@/components/connection/FirmwareUpdateModal";
 import { ConfigurationTab } from "@/components/configuration/ConfigurationTab";
 import { LiveMonitorTab } from "@/components/monitor/LiveMonitorTab";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import { initializeHelpContent } from "@/lib/help-content";
 
 // Initialize help content
@@ -14,9 +16,22 @@ initializeHelpContent();
 function ConfigurePageContent() {
   const [searchParams, setSearchParams] = useSearchParams();
   const currentTab = searchParams.get("tab") || "config";
+  const advancedMode = searchParams.get("advanced") === "true";
 
   const onTabChange = (value: string) => {
-    setSearchParams({ tab: value });
+    const newParams = new URLSearchParams(searchParams);
+    newParams.set("tab", value);
+    setSearchParams(newParams);
+  };
+
+  const handleAdvancedModeChange = (checked: boolean) => {
+    const newParams = new URLSearchParams(searchParams);
+    if (checked) {
+      newParams.set("advanced", "true");
+    } else {
+      newParams.delete("advanced");
+    }
+    setSearchParams(newParams);
   };
 
   return (
@@ -25,10 +40,20 @@ function ConfigurePageContent() {
       {/* Header with connection status - fixed height */}
       <header className="border-b w-full flex-shrink-0">
         <div className="flex h-14 items-center justify-between px-4 max-w-5xl mx-auto w-full">
-          <Link to="/" className="font-bold text-xl">
+          <Link to="/" className="font-bold text-xl shrink-0">
             <img src="itaiko.png" className="pixelated drag-none" alt="Logo" />
           </Link>
-          <HeaderConnectionStatus />
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <Label htmlFor="advanced-mode" className="text-sm">Advanced</Label>
+              <Switch
+                id="advanced-mode"
+                checked={advancedMode}
+                onCheckedChange={handleAdvancedModeChange}
+              />
+            </div>
+            <HeaderConnectionStatus />
+          </div>
         </div>
       </header>
 

@@ -39,10 +39,9 @@ export function ConfigurationTab() {
     resetToDefaults,
   } = useDevice();
 
-  const [searchParams, setSearchParams] = useSearchParams();
-  const advancedParam = searchParams.get("advanced");
+  const [searchParams] = useSearchParams();
+  const advancedMode = searchParams.get("advanced") === "true";
 
-  const [advancedMode, setAdvancedModeState] = useState(advancedParam === "true");
   const [showResetDialog, setShowResetDialog] = useState(false);
   const [showHelperModal, setShowHelperModal] = useState(false);
 
@@ -59,16 +58,6 @@ export function ConfigurationTab() {
   const handleFactoryReset = () => {
     resetToDefaults();
     setShowResetDialog(false);
-  };
-
-  const handleAdvancedModeChange = (checked: boolean) => {
-    setAdvancedModeState(checked);
-    if (checked) {
-      searchParams.set("advanced", "true");
-    } else {
-      searchParams.delete("advanced");
-    }
-    setSearchParams(searchParams);
   };
 
   const isFirstRender = useRef(true);
@@ -245,25 +234,6 @@ export function ConfigurationTab() {
         {/* Import/Export Config */}
         <BackupRestore />
       </div>
-
-      {/* Mode Toggle - Always accessible */}
-      <Card>
-        <CardContent >
-          <div className="flex items-center justify-between">
-            <div className="space-y-0.5">
-              <Label htmlFor="advanced-mode">Advanced Mode</Label>
-              <p className="text-sm text-muted-foreground">
-                Show all configuration options
-              </p>
-            </div>
-            <Switch
-              id="advanced-mode"
-              checked={advancedMode}
-              onCheckedChange={handleAdvancedModeChange}
-            />
-          </div>
-        </CardContent>
-      </Card>
 
       {/* Factory Reset Dialog */}
       <Dialog open={showResetDialog} onOpenChange={setShowResetDialog}>
