@@ -1,6 +1,7 @@
 import { createContext, useContext, useMemo, useEffect, useRef, useState } from "react";
 import type { ReactNode, RefObject } from "react";
 import { useWebSerial } from "@/hooks/useWebSerial";
+import { useDemoSerial } from "@/hooks/useDemoSerial";
 import { useDeviceConfig } from "@/hooks/useDeviceConfig";
 import { useDeviceStreaming, type TriggerState, type StreamingMode } from "@/hooks/useDeviceStreaming";
 import { useKeyboardInput } from "@/hooks/useKeyboardInput";
@@ -17,6 +18,8 @@ import {
   type ADCChannels,
   type PS4AuthBackupData,
 } from "@/types";
+
+const isDemoMode = new URLSearchParams(window.location.search).get("demo") === "true";
 
 interface DeviceContextValue {
   // Connection
@@ -85,8 +88,10 @@ interface DeviceProviderProps {
 }
 
 export function DeviceProvider({ children }: DeviceProviderProps) {
-  const serial = useWebSerial();
-  const [isReady, setIsReady] = useState(false);
+  const realSerial = useWebSerial();
+  const demoSerial = useDemoSerial();
+  const serial = isDemoMode ? demoSerial : realSerial;
+  const [isReady, setIsReady] = useState(isDemoMode);
   const [modalOpen, setModalOpen] = useState(false);
 
   const isConnected = serial.status === "connected";
@@ -121,8 +126,10 @@ export function DeviceProvider({ children }: DeviceProviderProps) {
   // Track previous connection state to detect new connections
   const wasConnectedRef = useRef(false);
 
-  // Auto-read config when device connects
+  // Auto-read config when device connects (skip in demo mode — already ready)
   useEffect(() => {
+    if (isDemoMode) return;
+
     if (isConnected && !wasConnectedRef.current) {
       // New connection - read config first
       setIsReady(false);
@@ -131,7 +138,7 @@ export function DeviceProvider({ children }: DeviceProviderProps) {
       // We don't await this because we want to start reading config ASAP, and the stop command
       // will be processed by the device before the read command in the serial queue.
       serial.sendCommand(DeviceCommand.STOP_STREAMING).catch(console.warn);
-      
+
       deviceConfig.readFromDevice().then(() => {
         setIsReady(true);
       });
@@ -210,7 +217,9 @@ export function DeviceProvider({ children }: DeviceProviderProps) {
       disconnect: handleDisconnect,
 
       // Configuration
-      config: deviceConfig.config,
+      config: isDemoMode
+        ? { ...deviceConfig.config, firmwareVersion: deviceConfig.config.firmwareVersion ?? "DEMO" }
+        : deviceConfig.config,
       configLoading: deviceConfig.isLoading,
       configDirty: deviceConfig.isDirty,
       readFromDevice: deviceConfig.readFromDevice,
