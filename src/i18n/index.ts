@@ -11,6 +11,8 @@ import enMonitor from "./locales/en/monitor.json";
 import enHelp from "./locales/en/help.json";
 import enMessages from "./locales/en/messages.json";
 
+import itPages from "./locales/it/pages.json";
+
 import zhTWCommon from "./locales/zh-TW/common.json";
 import zhTWPages from "./locales/zh-TW/pages.json";
 import zhTWConnection from "./locales/zh-TW/connection.json";
@@ -31,6 +33,9 @@ export const resources = {
     help: enHelp,
     messages: enMessages,
   },
+  it: {
+    pages: itPages,
+  },
   "zh-TW": {
     common: zhTWCommon,
     pages: zhTWPages,
@@ -49,7 +54,7 @@ i18n
   .init({
     resources,
     fallbackLng: "en",
-    supportedLngs: ["en", "zh-TW"],
+    supportedLngs: ["en", "it", "zh-TW"],
     defaultNS: "pages",
     interpolation: {
       // React already escapes values

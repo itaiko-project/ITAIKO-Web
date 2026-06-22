@@ -1,30 +1,38 @@
 {
   "landing": {
+    "nav": {
+      "home": "Home",
+      "buy": "Shop",
+      "github": "Github",
+      "configurator": "Configurator"
+    },
     "hero": {
-      "subtitle": "Configure and calibrate your custom Taiko drum controller directly from your browser.",
-      "badgeWebserial": "WebSerial",
-      "badgeRealtime": "Real-time Monitoring",
-      "badgeNoDownload": "No Download Required"
+      "welcome": "Welcome to",
+      "subtitle": "Configurable directly via browser, no software download needed!",
+      "tagline1a": "World's best Taiko ",
+      "tagline1b": "Arcade Style Controller",
+      "tagline2": "fully customizable and open source"
     },
     "cta": {
-      "configure": "Configure Your Drum"
+      "configure": "Configure Your Drum",
+      "demo": "(click here to try it without a drum)",
+      "buy": "Buy Now",
+      "buildYourOwn": "Build Your Own",
+      "checkCompatibility": "Check Compatibility"
     },
-    "features": {
-      "liveMonitor": {
-        "title": "Live Monitor",
-        "description": "Real-time sensor visualization with GPU-accelerated graphs"
-      },
-      "easyConfig": {
-        "title": "Easy Configuration",
-        "description": "Adjust thresholds and timing settings with intuitive controls"
-      },
-      "visualFeedback": {
-        "title": "Visual Feedback",
-        "description": "See your drum pads light up in real-time as you play"
-      }
+    "onigiri1": {
+      "article": "The",
+      "name": "Onigiri-con",
+      "tagline1": "Lagless inputs, flawless readings. Take your drum to the next level!!",
+      "tagline2": "Also compatible with your old TaikoForce and ZhongTaiko!"
+    },
+    "onigiri2": {
+      "heading": "countless features",
+      "tagline1": "All the buttons you need, an OLED Screen for quick adjustments.",
+      "tagline2": "Compatible with PC, PS3, PS4, NSwitch and even Original Arcade!"
     },
     "footer": {
-      "browserRequirement": "Requires Chrome, Edge, Opera or Firefox with WebSerial extension"
+      "browserRequirement": "Supported by all browsers with WebUSB"
     }
   },
   "configure": {
