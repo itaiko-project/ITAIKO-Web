@@ -78,7 +78,7 @@
 }
 
 .dark {
-  --background: oklch(0 0 0);
+  --background: oklch(0.145 0 0);
   --foreground: oklch(0.985 0 0);
   --card: oklch(0.1 0 0);
   --card-foreground: oklch(0.985 0 0);
@@ -166,7 +166,7 @@
   left: 0;
   right: 0;
   height: 120%;
-  background: linear-gradient(to bottom, transparent 0%, oklch(0 0 0 / 0.55) 50%, var(--background) 85%);
+  background: linear-gradient(to bottom, transparent 0%, color-mix(in oklch, var(--background) 55%, transparent) 50%, var(--background) 85%);
   pointer-events: none;
 }
 
@@ -190,5 +190,52 @@
   }
   to {
     background-position: 5rem top;
+  }
+}
+@keyframes float-soft {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-12px); }
+}
+
+@utility float-soft {
+  animation: float-soft 6s ease-in-out infinite;
+}
+
+/* ponytail: respect reduced-motion, no animation for those who opt out */
+@media (prefers-reduced-motion: reduce) {
+  .float-soft { animation: none; }
+}
+
+/* ── Entrance reveals (toggled by IntersectionObserver in LandingPage) ── */
+.reveal {
+  opacity: 0;
+  transform: translateY(24px);
+  transition: opacity 0.7s ease-out, transform 0.7s ease-out;
+  will-change: opacity, transform;
+}
+.reveal.reveal-left  { transform: translateX(-32px); }
+.reveal.reveal-right { transform: translateX(32px); }
+.reveal.is-visible   { opacity: 1; transform: none; }
+
+/* Stagger: container stays put, its direct children fade up in sequence */
+.reveal.reveal-stagger { opacity: 1; transform: none; transition: none; will-change: auto; }
+.reveal-stagger > * {
+  opacity: 0;
+  transform: translateY(20px);
+  transition: opacity 0.6s ease-out, transform 0.6s ease-out;
+}
+.reveal-stagger.is-visible > * { opacity: 1; transform: none; }
+.reveal-stagger.is-visible > *:nth-child(1) { transition-delay: 0.10s; }
+.reveal-stagger.is-visible > *:nth-child(2) { transition-delay: 0.18s; }
+.reveal-stagger.is-visible > *:nth-child(3) { transition-delay: 0.26s; }
+.reveal-stagger.is-visible > *:nth-child(4) { transition-delay: 0.34s; }
+.reveal-stagger.is-visible > *:nth-child(5) { transition-delay: 0.42s; }
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal,
+  .reveal-stagger > * {
+    opacity: 1 !important;
+    transform: none !important;
+    transition: none !important;
   }
 }
