@@ -1,0 +1,50 @@
+{
+  "landing": {
+    "nav": {
+      "home": "Home",
+      "buy": "Negozio",
+      "github": "Github",
+      "configurator": "Configuratore"
+    },
+    "hero": {
+      "welcome": "Ecco",
+      "subtitle": "Configurabile direttamente dal browser, nessun software da scaricare!",
+      "tagline1a": "Il miglior controller Taiko ",
+      "tagline1b": "in stile Arcade",
+      "tagline2": "completamente personalizzabile e open source"
+    },
+    "cta": {
+      "configure": "Configura il tuo tamburo",
+      "demo": "(clicca qui per provarlo senza un tamburo)",
+      "buy": "Acquista ora",
+      "buildYourOwn": "Costruisci il tuo",
+      "checkCompatibility": "Verifica compatibilità"
+    },
+    "onigiri1": {
+      "article": "La",
+      "name": "Onigiri-con",
+      "tagline1": "Input senza latenza, letture perfette. Porta il tuo tamburo al livello successivo!!",
+      "tagline2": "Compatibile anche con il tuo vecchio TaikoForce e ZhongTaiko!"
+    },
+    "onigiri2": {
+      "heading": "L'e-box più completa",
+      "tagline1": "Tutti i pulsanti che ti servono, un display OLED per regolazioni rapide.",
+      "tagline2": "Compatibile con PC, PS3, PS4, NSwitch e persino con l'Arcade originale!"
+    },
+    "footer": {
+      "browserRequirement": "Supportato da tutti i browser con WebUSB"
+    }
+  },
+  "configure": {
+    "header": {
+      "logoAlt": "Logo"
+    },
+    "advanced": {
+      "label": "Avanzate"
+    },
+    "tabs": {
+      "config": "Configurazione",
+      "monitor": "Monitor live"
+    }
+  }
+}

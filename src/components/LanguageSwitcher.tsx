@@ -10,6 +10,7 @@ import {
 
 const LANGUAGES = [
   { code: "en", label: "English" },
+  { code: "it", label: "Italiano" },
   { code: "zh-TW", label: "繁體中文" },
 ];
 
@@ -19,11 +20,11 @@ export function LanguageSwitcher() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="sm" className="gap-1">
+        <Button variant="ghost" size="sm" className="gap-1 p-0 h-auto font-normal text-sm md:text-base text-foreground/70 hover:text-foreground hover:bg-transparent">
           <Languages className="h-4 w-4" />
-          <span className="text-xs">
+          <span>
             {LANGUAGES.find((l) => l.code === i18n.language)?.label ??
-              (i18n.language.startsWith("zh") ? "繁體中文" : "English")}
+              (i18n.language.startsWith("zh") ? "繁體中文" : i18n.language.startsWith("it") ? "Italiano" : "English")}
           </span>
         </Button>
       </DropdownMenuTrigger>

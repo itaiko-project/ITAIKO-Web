@@ -1,30 +1,38 @@
 {
   "landing": {
+    "nav": {
+      "home": "首頁",
+      "buy": "商店",
+      "github": "Github",
+      "configurator": "設定器"
+    },
     "hero": {
-      "subtitle": "直接在瀏覽器中設定並校準您的太鼓控制器。",
-      "badgeWebserial": "WebSerial",
-      "badgeRealtime": "即時監控",
-      "badgeNoDownload": "免下載"
+      "welcome": "歡迎使用",
+      "subtitle": "直接透過瀏覽器設定，無需下載軟體！",
+      "tagline1a": "全球最佳太鼓",
+      "tagline1b": "街機風格控制器",
+      "tagline2": "完全可自訂且開源"
     },
     "cta": {
-      "configure": "開始設定太鼓"
+      "configure": "開始設定太鼓",
+      "demo": "（點此體驗，不需要太鼓）",
+      "buy": "立即購買",
+      "buildYourOwn": "自訂打造",
+      "checkCompatibility": "確認相容性"
     },
-    "features": {
-      "liveMonitor": {
-        "title": "即時監控",
-        "description": "透過 GPU 加速的圖表，即時視覺化感測器數據"
-      },
-      "easyConfig": {
-        "title": "輕鬆設定",
-        "description": "以直覺操作調整閾值與時序設定"
-      },
-      "visualFeedback": {
-        "title": "視覺回饋",
-        "description": "打擊時即時點亮對應的鼓面區域"
-      }
+    "onigiri1": {
+      "article": "The",
+      "name": "Onigiri-con",
+      "tagline1": "零延遲輸入，精準讀取。將你的太鼓提升到新境界！！",
+      "tagline2": "同樣相容你舊有的 TaikoForce 與 ZhongTaiko！"
+    },
+    "onigiri2": {
+      "heading": "countless features",
+      "tagline1": "所需的所有按鍵，搭載 OLED 螢幕快速調整。",
+      "tagline2": "相容 PC、PS3、PS4、NSwitch，甚至原版街機！"
     },
     "footer": {
-      "browserRequirement": "需使用 Chrome、Edge、Opera 或安裝 WebSerial 擴充功能的 Firefox"
+      "browserRequirement": "所有支援 WebUSB 的瀏覽器均可使用設定器"
     }
   },
   "configure": {
