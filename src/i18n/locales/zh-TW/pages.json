@@ -32,7 +32,17 @@
       "tagline2": "相容 PC、PS3、PS4、NSwitch，甚至原版街機！"
     },
     "footer": {
-      "browserRequirement": "所有支援 WebUSB 的瀏覽器均可使用設定器"
+      "browserRequirement": "所有支援 WebSerial API 的瀏覽器均可使用設定器"
+    },
+    "specs": {
+      "polling": "USB 輪詢率",
+      "pollingValue": "1000 Hz",
+      "modes": "控制器模式",
+      "modesValue": "12",
+      "display": "板載 OLED",
+      "displayValue": "128×64",
+      "openSource": "開源",
+      "openSourceValue": "100%"
     }
   },
   "configure": {

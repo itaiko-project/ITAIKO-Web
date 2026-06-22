@@ -32,7 +32,17 @@
       "tagline2": "Compatibile con PC, PS3, PS4, NSwitch e persino con l'Arcade originale!"
     },
     "footer": {
-      "browserRequirement": "Supportato da tutti i browser con WebUSB"
+      "browserRequirement": "Supportato da tutti i browser con WebSerial API"
+    },
+    "specs": {
+      "polling": "Polling USB",
+      "pollingValue": "1000 Hz",
+      "modes": "Modalità controller",
+      "modesValue": "12",
+      "display": "Display OLED",
+      "displayValue": "128×64",
+      "openSource": "Open source",
+      "openSourceValue": "100%"
     }
   },
   "configure": {
