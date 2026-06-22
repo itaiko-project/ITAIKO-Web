@@ -88,7 +88,7 @@ export function LandingPage() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [isLastSection, setIsLastSection] = useState(false);
   const [activeSection, setActiveSection] = useState(0);
-  const SECTION_COUNT = 4; // ponytail: hero + 2 onigiri + footer; last dot = footer (snaps to bottom)
+  const SECTION_COUNT = 3; // hero + 2 onigiri; footer rides at the bottom of the last slide
 
   const onigiriRatio = logo.heroH / logo.h;
 
@@ -193,7 +193,7 @@ export function LandingPage() {
       {/* ── Top fade (masks content scrolling under the navbar) ── */}
       <div className="relative flex-shrink-0 h-0 z-30">
         <div
-          className="absolute top-0 left-0 right-0 pointer-events-none"
+          className="hidden md:block absolute top-0 left-0 right-0 pointer-events-none"
           style={{
             height: '90px',
             background: 'linear-gradient(to bottom, var(--background) 0%, transparent 100%)',
@@ -215,7 +215,7 @@ export function LandingPage() {
           style={{ scrollSnapAlign: 'start', flexShrink: 0, flexBasis: '100%' }}
         >
           {/* main row */}
-          <div className="flex flex-col md:flex-row md:items-center md:justify-center md:gap-4 md:px-16 flex-1 min-h-0 w-full">
+          <div className="flex flex-col justify-center md:flex-row md:items-center md:justify-center md:gap-4 md:px-16 flex-1 min-h-0 w-full">
           {/* NARROW: heading above drum */}
           <div className="reveal md:hidden flex justify-center items-end px-6 pt-1 pb-0 flex-shrink-0">
             <div className="flex items-center gap-1 flex-nowrap" style={{ fontSize: 'clamp(40px, 10vw, 72px)' }}>
@@ -252,8 +252,8 @@ export function LandingPage() {
           </div>
 
           {/* NARROW: tagline + button */}
-          <div className="reveal reveal-stagger md:hidden flex flex-col items-center px-6 pt-0 pb-3 gap-3 flex-shrink-0">
-            <p className="garamond text-2xl text-center text-muted-foreground leading-snug">
+          <div className="reveal reveal-stagger md:hidden flex flex-col items-center px-10 pt-0 pb-3 gap-3 flex-shrink-0">
+            <p className="serif-body text-2xl text-center text-muted-foreground leading-snug">
               {t("landing.hero.tagline1a")}<em>{t("landing.hero.tagline1b")}</em><br />
               {t("landing.hero.tagline2")}
             </p>
@@ -282,11 +282,11 @@ export function LandingPage() {
                 style={{ width: `${logo.heroW}px`, height: `${logo.heroH}px` }}
               />
             </div>
-            <p className="garamond text-2xl text-muted-foreground leading-snug mt-3">
+            <p className="serif-body text-2xl text-muted-foreground leading-snug mt-3">
               {t("landing.hero.tagline1a")}<em>{t("landing.hero.tagline1b")}</em><br />
               {t("landing.hero.tagline2")}
             </p>
-            <p className="garamond text-xl text-muted-foreground leading-relaxed mt-3" style={{ maxWidth: 'min(580px, 55vw)' }}>
+            <p className="serif-body text-xl text-muted-foreground leading-relaxed mt-3" style={{ maxWidth: 'min(580px, 55vw)' }}>
               {t("landing.hero.subtitle")}
             </p>
             <div className="mt-5 flex gap-3">
@@ -303,8 +303,8 @@ export function LandingPage() {
           </div>
           </div>{/* /main row */}
 
-          {/* Spec strip */}
-          <div className="flex-shrink-0 w-full px-6 md:px-16 pb-5 md:pb-10">
+          {/* Spec strip (desktop only — mobile hero has no room) */}
+          <div className="hidden md:block flex-shrink-0 w-full px-6 md:px-16 pb-5 md:pb-10">
             <div className="reveal reveal-stagger mx-auto max-w-4xl grid grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-5 text-center">
               {[
                 [t("landing.specs.pollingValue"), t("landing.specs.polling")],
@@ -324,7 +324,7 @@ export function LandingPage() {
         {/* ── Section 2: Onigiri-con ── */}
         <div
           data-section={1}
-          className="flex flex-col md:flex-row-reverse md:items-center md:justify-center md:gap-4 md:px-16 overflow-hidden"
+          className="flex flex-col justify-center md:flex-row-reverse md:items-center md:justify-center md:gap-4 md:px-16 overflow-hidden"
           style={{ scrollSnapAlign: 'start', flexShrink: 0, flexBasis: '100%' }}
         >
           {/* NARROW: heading above image */}
@@ -360,8 +360,8 @@ export function LandingPage() {
           </div>
 
           {/* NARROW: tagline + button */}
-          <div className="reveal reveal-stagger md:hidden flex flex-col items-center px-6 pt-0 pb-3 gap-3 flex-shrink-0">
-            <p className="garamond text-xl text-center text-muted-foreground leading-snug">
+          <div className="reveal reveal-stagger md:hidden flex flex-col items-center px-10 pt-0 pb-3 gap-3 flex-shrink-0">
+            <p className="serif-body text-xl text-center text-muted-foreground leading-snug">
               {t("landing.onigiri1.tagline1")}<br />
               {t("landing.onigiri1.tagline2")}
             </p>
@@ -395,10 +395,10 @@ export function LandingPage() {
                 Onigiri-con
               </em>
             </div>
-            <p className="garamond text-2xl text-muted-foreground leading-snug mt-3">
+            <p className="serif-body text-2xl text-muted-foreground leading-snug mt-3">
               {t("landing.onigiri1.tagline1")}
             </p>
-            <p className="garamond text-xl text-muted-foreground leading-relaxed mt-2" style={{ maxWidth: 'min(580px, 55vw)' }}>
+            <p className="serif-body text-xl text-muted-foreground leading-relaxed mt-2" style={{ maxWidth: 'min(580px, 55vw)' }}>
               {t("landing.onigiri1.tagline2")}
             </p>
             <div className="mt-5 flex gap-3">
@@ -412,12 +412,14 @@ export function LandingPage() {
           </div>
         </div>
 
-        {/* ── Section 3: Onigiri-con (features) ── */}
+        {/* ── Section 3: Onigiri-con (features) + footer ── */}
         <div
           data-section={2}
-          className="flex flex-col md:flex-row md:items-center md:justify-center md:gap-4 md:px-16 overflow-hidden"
+          className="flex flex-col overflow-hidden"
           style={{ scrollSnapAlign: 'start', flexShrink: 0, flexBasis: '100%' }}
         >
+          {/* main row */}
+          <div className="flex flex-col justify-center md:flex-row md:items-center md:justify-center md:gap-4 md:px-16 flex-1 min-h-0 w-full">
           {/* NARROW: heading above image */}
           <div className="reveal md:hidden flex justify-center items-end px-10 pt-1 pb-0 flex-shrink-0 relative z-10">
             <h2 className="garamond font-light leading-none overflow-visible" style={{ fontSize: 'clamp(40px, 10vw, 72px)' }}>
@@ -435,19 +437,19 @@ export function LandingPage() {
             />
           </div>
 
-          {/* ONIGIRI WIREFRAME — mobile */}
+          {/* ONIGIRI WIREFRAME — mobile (smaller: this slide also carries the footer) */}
           <div className="reveal md:hidden flex-shrink-0 pointer-events-none flex justify-center">
             <img
               src="onigiri_wireframe.png"
               alt=""
               className="drag-none select-none float-soft"
-              style={{ maxHeight: '54vh', maxWidth: '100%', animationDelay: '-3s' }}
+              style={{ maxHeight: '44vh', maxWidth: '100%', animationDelay: '-3s' }}
             />
           </div>
 
           {/* NARROW: tagline + button */}
-          <div className="reveal reveal-stagger md:hidden flex flex-col items-center px-6 pt-0 pb-3 gap-3 flex-shrink-0">
-            <p className="garamond text-xl text-center text-muted-foreground leading-snug">
+          <div className="reveal reveal-stagger md:hidden flex flex-col items-center px-10 pt-0 pb-3 gap-3 flex-shrink-0">
+            <p className="serif-body text-xl text-center text-muted-foreground leading-snug">
               {t("landing.onigiri2.tagline1")}<br />
               {t("landing.onigiri2.tagline2")}
             </p>
@@ -472,10 +474,10 @@ export function LandingPage() {
                 <em>{t("landing.onigiri2.heading")}</em>
               </h2>
             </div>
-            <p className="garamond text-2xl text-muted-foreground leading-snug mt-3">
+            <p className="serif-body text-2xl text-muted-foreground leading-snug mt-3">
               {t("landing.onigiri2.tagline1")}
             </p>
-            <p className="garamond text-xl text-muted-foreground leading-relaxed mt-2" style={{ maxWidth: 'min(580px, 55vw)' }}>
+            <p className="serif-body text-xl text-muted-foreground leading-relaxed mt-2" style={{ maxWidth: 'min(580px, 55vw)' }}>
               {t("landing.onigiri2.tagline2")}
             </p>
             <div className="mt-5">
@@ -484,38 +486,38 @@ export function LandingPage() {
               </Button>
             </div>
           </div>
-        </div>
+          </div>{/* /main row */}
 
-        {/* ── Footer (at the bottom of the scroll, reached by scrolling) ── */}
-        <footer data-section={3} className="seigaiha-footer border-t flex-shrink-0 py-5" style={{ scrollSnapAlign: 'end' }}>
-          <div className="px-4 md:px-16 grid grid-cols-3 items-center text-sm text-foreground">
-            <span className="hidden md:inline">{t("landing.footer.browserRequirement")}</span>
-            <span className="md:hidden" />
-            <div className="flex justify-center">
-              <a
-                href="https://github.com/itaiko-project"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-foreground/70 hover:text-foreground transition-colors"
-                aria-label="GitHub"
-              >
-                <GitHubIcon size={20} />
-              </a>
+          {/* Footer pinned to the bottom of the last slide */}
+          <footer className="seigaiha-footer border-t flex-shrink-0 py-4">
+            <div className="px-4 md:px-16 grid grid-cols-3 items-center text-sm text-foreground">
+              <span className="hidden md:inline">{t("landing.footer.browserRequirement")}</span>
+              <span className="md:hidden" />
+              <div className="flex justify-center">
+                <a
+                  href="https://github.com/itaiko-project"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-foreground/70 hover:text-foreground transition-colors"
+                  aria-label="GitHub"
+                >
+                  <GitHubIcon size={20} />
+                </a>
+              </div>
+              <span />
             </div>
-            <span />
-          </div>
-        </footer>
+          </footer>
+        </div>
 
       </div>
 
       {/* ── Gradient fade + chevron (h-0 overlay at scroll/footer boundary) ── */}
       <div className="relative flex-shrink-0 h-0 z-40">
         <div
-          className={`absolute bottom-0 left-0 right-0 pointer-events-none transition-opacity duration-500 ${
+          className={`absolute bottom-0 left-0 right-0 pointer-events-none transition-opacity duration-500 h-[64px] md:h-[120px] ${
             isLastSection ? 'opacity-0' : 'opacity-100'
           }`}
           style={{
-            height: '120px',
             background: 'linear-gradient(to bottom, transparent 0%, color-mix(in oklch, var(--background) 85%, transparent) 100%)',
           }}
         />
@@ -537,9 +539,7 @@ export function LandingPage() {
             key={i}
             onClick={() => {
               const el = scrollRef.current;
-              if (!el) return;
-              const top = i === SECTION_COUNT - 1 ? el.scrollHeight : i * el.clientHeight;
-              el.scrollTo({ top, behavior: 'smooth' });
+              if (el) el.scrollTo({ top: i * el.clientHeight, behavior: 'smooth' });
             }}
             aria-label={`Section ${i + 1}`}
             className={`w-2.5 h-2.5 rounded-full transition-all duration-300 ${

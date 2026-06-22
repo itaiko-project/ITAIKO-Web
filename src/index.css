@@ -117,6 +117,9 @@
   }
   body {
     @apply bg-background text-foreground;
+    /* Even out light-serif strokes on the dark background */
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 }
 
@@ -144,10 +147,19 @@
 
 @utility garamond {
   font-family: 'Apple Garamond', Georgia, serif;
+  font-feature-settings: "kern" 1, "liga" 1;
+  text-rendering: optimizeLegibility;
 }
 
 @utility cormorant {
   font-family: 'Cormorant Garamond', Georgia, serif;
+}
+
+/* Text-grade serif for body copy (Apple Garamond is display-only) */
+@utility serif-body {
+  font-family: 'EB Garamond', Georgia, serif;
+  font-feature-settings: "kern" 1, "liga" 1;
+  text-rendering: optimizeLegibility;
 }
 
 /* Seigaiha (Japanese wave) pattern */
