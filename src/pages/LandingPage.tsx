@@ -1,8 +1,14 @@
-import { useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+
+const DrumViewer = lazy(() => import("@/components/DrumViewer"));
+
+// ponytail: the reveal observer grabs .reveal nodes once on mount, so an HMR swap leaves the new
+// nodes unobserved and stuck at opacity 0. Full reload in dev instead of debugging a phantom.
+if (import.meta.hot) import.meta.hot.accept(() => location.reload());
 
 function useScaleToFit(deps: unknown[] = []) {
   const ref = useRef<HTMLDivElement>(null);
@@ -32,7 +38,7 @@ function useLogoSizes() {
     const heroScale = (k + 1) / dpr;
     const w = 128 * scale;
     const h = 64 * scale;
-    return { w, h, heroW: 128 * heroScale, heroH: 64 * heroScale, seigaihaH: h + 12 };
+    return { w, h, heroW: 128 * heroScale, heroH: 64 * heroScale };
   };
   const [sizes, setSizes] = useState(calc);
   useEffect(() => {
@@ -80,6 +86,7 @@ function GitHubIcon({ size = 20 }: { size?: number }) {
 export function LandingPage() {
   const { t } = useTranslation("pages");
   const logo = useLogoSizes();
+  const drumSlotRef = useRef<HTMLDivElement>(null);
   const headingRef = useScaleToFit([logo.h, logo.heroW, logo.heroH]);
   const productHeadingRef = useScaleToFit([logo.h, logo.heroH]);
   const product2HeadingRef = useScaleToFit([logo.h, logo.heroH]);
@@ -149,12 +156,9 @@ export function LandingPage() {
   return (
     <div className="h-screen flex flex-col overflow-hidden">
 
-      {/* ── Navbar (always visible) ── */}
-      <div
-        className="seigaiha-border relative flex-shrink-0"
-        style={{ height: `${logo.seigaihaH}px` }}
-      >
-        <nav className="absolute top-0 left-0 right-0 flex items-center justify-between px-3 md:px-8 pt-0 pb-3 z-10">
+      {/* ── Navbar (transparent, floating over the hero) ── */}
+      <div className="relative flex-shrink-0 h-0 z-40">
+        <nav className="absolute top-0 left-0 right-0 flex items-center justify-between px-3 md:px-8 pt-3 pb-3">
           <Link to="/">
             <img
               src="itaiko.png"
@@ -188,17 +192,6 @@ export function LandingPage() {
         </nav>
       </div>
 
-      {/* ── Top fade (masks content scrolling under the navbar) ── */}
-      <div className="relative flex-shrink-0 h-0 z-30">
-        <div
-          className="hidden md:block absolute top-0 left-0 right-0 pointer-events-none"
-          style={{
-            height: '90px',
-            background: 'linear-gradient(to bottom, var(--background) 0%, transparent 100%)',
-          }}
-        />
-      </div>
-
       {/* ── Snap scroll container ── */}
       <div
         ref={scrollRef}
@@ -209,13 +202,18 @@ export function LandingPage() {
         {/* ── Section 1: Hero ── */}
         <div
           data-section={0}
-          className="flex flex-col overflow-hidden"
+          className="relative flex flex-col overflow-hidden"
           style={{ scrollSnapAlign: 'start', flexShrink: 0, flexBasis: '100%' }}
         >
-          {/* main row */}
-          <div className="flex flex-col justify-center md:flex-row md:items-center md:justify-center md:gap-4 md:px-16 flex-1 min-h-0 w-full">
+          {/* Full-bleed 3D stage: framed on the drum slot below, free to spill its reflection anywhere */}
+          <Suspense fallback={null}>
+            <DrumViewer className="absolute inset-0 z-0" focusRef={drumSlotRef} />
+          </Suspense>
+
+          {/* main row — pointer-events off so drags land on the canvas; text opts back in */}
+          <div className="relative z-10 pointer-events-none flex flex-col justify-center md:flex-row md:items-center md:justify-center md:gap-4 md:px-16 flex-1 min-h-0 w-full pt-14 md:pt-0">
           {/* NARROW: heading above drum */}
-          <div className="reveal md:hidden flex justify-center items-end px-6 pt-1 pb-0 flex-shrink-0">
+          <div className="reveal md:hidden flex justify-center items-end px-6 pt-1 pb-0 flex-shrink-0 pointer-events-auto">
             <div className="flex items-center gap-1 flex-nowrap" style={{ fontSize: 'clamp(40px, 10vw, 72px)' }}>
               <h1 className="garamond font-light leading-none whitespace-nowrap shrink-0" style={{ fontSize: '1em' }}>
                 {t("landing.hero.welcome")}
@@ -229,28 +227,11 @@ export function LandingPage() {
             </div>
           </div>
 
-          {/* DRUM — desktop */}
-          <div className="reveal reveal-left hidden md:block flex-shrink-0 pointer-events-none">
-            <img
-              src="drum_home.png"
-              alt=""
-              className="drag-none select-none block"
-              style={{ maxHeight: '80vh', maxWidth: '33vw', height: 'auto', width: 'auto' }}
-            />
-          </div>
-
-          {/* DRUM — mobile */}
-          <div className="reveal md:hidden flex-shrink-0 overflow-hidden pointer-events-none flex items-start justify-center pl-10" style={{ height: '54vh' }}>
-            <img
-              src="drum_home.png"
-              alt=""
-              className="drag-none select-none"
-              style={{ maxHeight: '100%', maxWidth: '100%', objectFit: 'contain' }}
-            />
-          </div>
+          {/* DRUM slot — empty; the canvas behind frames itself on this box */}
+          <div ref={drumSlotRef} aria-hidden className="flex-shrink-0 h-[54vh] w-full md:h-[80vh] md:w-[33vw]" />
 
           {/* NARROW: tagline + button */}
-          <div className="reveal reveal-stagger md:hidden flex flex-col items-center px-10 pt-0 pb-3 gap-3 flex-shrink-0">
+          <div className="reveal reveal-stagger md:hidden flex flex-col items-center px-10 pt-0 pb-3 gap-3 flex-shrink-0 pointer-events-auto">
             <p className="serif-body text-2xl text-center text-muted-foreground leading-snug">
               {t("landing.hero.tagline1a")}<em>{t("landing.hero.tagline1b")}</em><br />
               {t("landing.hero.tagline2")}
@@ -261,7 +242,7 @@ export function LandingPage() {
           </div>
 
           {/* WIDE: text column */}
-          <div className="reveal reveal-stagger hidden md:flex flex-col justify-center flex-shrink-0" style={{ maxWidth: 'min(720px, 60vw)' }}>
+          <div className="reveal reveal-stagger hidden md:flex flex-col justify-center flex-shrink-0 pointer-events-auto" style={{ maxWidth: 'min(720px, 60vw)' }}>
             <div
               ref={headingRef}
               className="flex items-center gap-1 flex-nowrap w-max"
@@ -302,7 +283,7 @@ export function LandingPage() {
           </div>{/* /main row */}
 
           {/* Spec strip (desktop only — mobile hero has no room) */}
-          <div className="hidden md:block flex-shrink-0 w-full px-6 md:px-16 pb-5 md:pb-10">
+          <div className="relative z-10 hidden md:block flex-shrink-0 w-full px-6 md:px-16 pb-5 md:pb-10">
             <div className="reveal reveal-stagger mx-auto max-w-4xl grid grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-5 text-center">
               {[
                 [t("landing.specs.pollingValue"), t("landing.specs.polling")],
