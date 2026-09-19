@@ -14,8 +14,9 @@ const KEY_INTENSITY = 2.2;  // warm, high and off to one side — the light you 
 const FILL_INTENSITY = 0.7; // cool and dim, opposite the key, just to lift the shadow side
 const BACK_INTENSITY = 2.6; // behind the drum, rakes the rope so it separates from the background
 const EXPOSURE = 0.95;
-const FLOOR_STRENGTH = 0.55; // reflection opacity right under the drum
-const MIRROR_BLUR = 0.35;   // mip bias: how soft the reflection is right under the drum
+const FLOOR_STRENGTH = 0.24; // restrained reflection right under the drum
+const MIRROR_BLUR = 0.0;    // keep bright reflections from bleeding into a broad floor halo
+const MIRROR_SPREAD = 0.04; // only a trace of distance softening
 const FLOOR_RADIUS = 1.6;   // mirror disc radius, in bounding-sphere radii
 const MIRROR_MAX = 2048;    // longest side of the reflection render target
 
@@ -120,7 +121,7 @@ export default function DrumViewer({ className, style, focusRef }: {
       scene.add(gltf.scene);
 
       const floorY = box.min.y - sphere.center.y;
-      const rig = stage(radius, floorY, pageBackground());
+      const rig = stage(radius, floorY);
       mirror = rig.find((o): o is Reflector => o instanceof Reflector) ?? null;
       scene.add(...rig);
 
@@ -181,7 +182,7 @@ export default function DrumViewer({ className, style, focusRef }: {
 // ponytail: no cast shadow — on a near-black page it only flattened the background texture;
 // the reflection does the grounding.
 /** Three-point studio rig and a blurred mirror floor. */
-function stage(radius: number, floorY: number, background: THREE.Color): THREE.Object3D[] {
+function stage(radius: number, floorY: number): THREE.Object3D[] {
   // Key: warm, high, and 3/4 off to the right — an overhead light gave the drum head no gradient.
   const key = new THREE.SpotLight(0xfff1e0, KEY_INTENSITY, 0, 0.85, 1);
   key.position.set(radius * 1.6, radius * 2.2, radius * 1.8);
@@ -210,13 +211,13 @@ function stage(radius: number, floorY: number, background: THREE.Color): THREE.O
   texture.generateMipmaps = true;
   texture.minFilter = THREE.LinearMipmapLinearFilter;
 
-  fadeAndBlur(floor.material as THREE.ShaderMaterial, radius, background);
+  fadeAndBlur(floor.material as THREE.ShaderMaterial, radius);
 
   return [key, key.target, fill, rim, floor];
 }
 
 /** Patches the Reflector shader: blur the mirror with distance and fade it into the page. */
-function fadeAndBlur(material: THREE.ShaderMaterial, radius: number, background: THREE.Color) {
+function fadeAndBlur(material: THREE.ShaderMaterial, radius: number) {
   material.transparent = true;
   material.depthWrite = false;
   material.defines = { ...material.defines, DITHERING: "" };
@@ -241,21 +242,15 @@ function fadeAndBlur(material: THREE.ShaderMaterial, radius: number, background:
 			// shows up as a hard line across the floor — so sharpen and fade out as uv approaches it.
 			vec2 edge = min( uv, 1.0 - uv );
 			float border = smoothstep( 0.0, 0.05, min( edge.x, edge.y ) );
-			vec3 base = texture2D( tDiffuse, uv, ( ${MIRROR_BLUR.toFixed(2)} + 0.7 * d ) * border ).rgb;
-			// The empty mirror has to read as the page, not as a black hole punched in it: add the page
-			// colour in, then fade coverage out with distance so the disc has no visible rim.
-			vec3 refl = blendOverlay( base, color ) + vec3( ${background.r.toFixed(4)}, ${background.g.toFixed(4)}, ${background.b.toFixed(4)} );
-			float a = ${FLOOR_STRENGTH} * ( 1.0 - smoothstep( 0.05, 1.1, d ) );
-			a = clamp( a * border + ( rand( gl_FragCoord.xy ) - 0.5 ) / 255.0, 0.0, 1.0 ); // 8-bit alpha bands too
-			gl_FragColor = vec4( refl * a, a ); // premultiplied, as the renderer expects`,
+			vec4 base = texture2D( tDiffuse, uv, ( ${MIRROR_BLUR.toFixed(2)} + ${MIRROR_SPREAD.toFixed(2)} * d ) * border );
+			// Preserve the scene's lighting and transparent background. The reflection receives
+			// the same tone mapping as the drum, without an overlay tint or added page colour.
+			vec3 reflected = base.rgb / max( base.a, 0.0001 );
+			float a = ${FLOOR_STRENGTH} * ( 1.0 - smoothstep( 0.05, 0.85, d ) );
+			a *= border * base.a;
+			// Normal material blending expects straight alpha; premultiplying before tone mapping
+			// changes highlight brightness and makes the reflected lighting look inconsistent.
+			gl_FragColor = vec4( reflected, a );`,
       );
   };
-}
-
-/** The page's own background colour, in the renderer's linear working space. */
-function pageBackground(): THREE.Color {
-  // ponytail: read once at load off <body>, which carries bg-background — a theme switch
-  // remounts the page, which re-reads it.
-  const css = getComputedStyle(document.body).backgroundColor;
-  return new THREE.Color(css || "#000").convertSRGBToLinear();
 }
