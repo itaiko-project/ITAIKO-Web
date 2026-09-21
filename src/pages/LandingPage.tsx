@@ -87,6 +87,7 @@ export function LandingPage() {
   const { t } = useTranslation("pages");
   const logo = useLogoSizes();
   const drumSlotRef = useRef<HTMLDivElement>(null);
+  const controllerSlotRef = useRef<HTMLDivElement>(null);
   const headingRef = useScaleToFit([logo.h, logo.heroW, logo.heroH]);
   const productHeadingRef = useScaleToFit([logo.h, logo.heroH]);
   const product2HeadingRef = useScaleToFit([logo.h, logo.heroH]);
@@ -154,7 +155,16 @@ export function LandingPage() {
   };
 
   return (
-    <div className="h-screen flex flex-col overflow-hidden">
+    <div className="relative h-screen flex flex-col overflow-hidden">
+
+      <Suspense fallback={null}>
+        <DrumViewer
+          className="absolute inset-0 z-0 pointer-events-none"
+          focusRef={drumSlotRef}
+          controllerRef={controllerSlotRef}
+          scrollRef={scrollRef}
+        />
+      </Suspense>
 
       {/* ── Navbar (transparent, floating over the hero) ── */}
       <div className="relative flex-shrink-0 h-0 z-40">
@@ -195,7 +205,7 @@ export function LandingPage() {
       {/* ── Snap scroll container ── */}
       <div
         ref={scrollRef}
-        className="flex-1 min-h-0 overflow-y-scroll snap-scroll flex flex-col"
+        className="relative z-10 flex-1 min-h-0 overflow-y-scroll snap-scroll flex flex-col"
         style={{ scrollSnapType: 'y mandatory' }}
       >
 
@@ -205,11 +215,6 @@ export function LandingPage() {
           className="relative flex flex-col overflow-hidden"
           style={{ scrollSnapAlign: 'start', flexShrink: 0, flexBasis: '100%' }}
         >
-          {/* Full-bleed 3D stage: framed on the drum slot below, free to spill its reflection anywhere */}
-          <Suspense fallback={null}>
-            <DrumViewer className="absolute inset-0 z-0" focusRef={drumSlotRef} />
-          </Suspense>
-
           {/* main row — pointer-events off so drags land on the canvas; text opts back in */}
           <div className="relative z-10 pointer-events-none flex flex-col justify-center md:flex-row md:items-center md:justify-center md:gap-4 md:px-16 flex-1 min-h-0 w-full pt-14 md:pt-0">
           {/* NARROW: heading above drum */}
@@ -228,7 +233,7 @@ export function LandingPage() {
           </div>
 
           {/* DRUM slot — empty; the canvas behind frames itself on this box */}
-          <div ref={drumSlotRef} aria-hidden className="flex-shrink-0 h-[54vh] w-full md:h-[80vh] md:w-[33vw]" />
+          <div ref={drumSlotRef} aria-hidden className="pointer-events-auto flex-shrink-0 h-[54vh] w-full md:h-[80vh] md:w-[33vw]" style={{ touchAction: 'pan-y', cursor: 'grab' }} />
 
           {/* NARROW: tagline + button */}
           <div className="reveal reveal-stagger md:hidden flex flex-col items-center px-10 pt-0 pb-3 gap-3 flex-shrink-0 pointer-events-auto">
@@ -318,25 +323,8 @@ export function LandingPage() {
             </div>
           </div>
 
-          {/* ONIGIRI — desktop */}
-          <div className="reveal reveal-right hidden md:block flex-shrink-0 pointer-events-none">
-            <img
-              src="onigiri_home.png"
-              alt=""
-              className="drag-none select-none block float-soft"
-              style={{ maxHeight: '80vh', maxWidth: '33vw', height: 'auto', width: 'auto' }}
-            />
-          </div>
-
-          {/* ONIGIRI — mobile */}
-          <div className="reveal md:hidden flex-shrink-0 overflow-hidden pointer-events-none flex items-start justify-center" style={{ height: '54vh' }}>
-            <img
-              src="onigiri_home.png"
-              alt=""
-              className="drag-none select-none float-soft"
-              style={{ maxHeight: '100%', maxWidth: '100%', objectFit: 'contain' }}
-            />
-          </div>
+          {/* The shared scene flies into the controller already beside the drum. */}
+          <div ref={controllerSlotRef} aria-hidden className="flex-shrink-0 h-[54vh] w-full md:h-[80vh] md:w-[33vw]" />
 
           {/* NARROW: tagline + button */}
           <div className="reveal reveal-stagger md:hidden flex flex-col items-center px-10 pt-0 pb-3 gap-3 flex-shrink-0">
