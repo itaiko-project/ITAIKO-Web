@@ -27,10 +27,12 @@ const UP = new THREE.Vector3(0, 1, 0);
  * The canvas is meant to be full-bleed so the reflection never gets clipped; `focusRef` points at
  * the (empty) element holding the drum's place in the layout, and the camera frames that box.
  */
-export default function DrumViewer({ className, style, focusRef }: {
+export default function DrumViewer({ className, style, focusRef, controllerRef, scrollRef }: {
   className?: string;
   style?: React.CSSProperties;
   focusRef?: React.RefObject<HTMLElement | null>;
+  controllerRef?: React.RefObject<HTMLElement | null>;
+  scrollRef?: React.RefObject<HTMLElement | null>;
 }) {
   const hostRef = useRef<HTMLDivElement>(null);
   const [ready, setReady] = useState(false);
@@ -54,7 +56,9 @@ export default function DrumViewer({ className, style, focusRef }: {
     scene.environmentIntensity = ENV_INTENSITY;
 
     const camera = new THREE.PerspectiveCamera(35, 1); // near/far are set from the model in fit()
-    const controls = new OrbitControls(camera, renderer.domElement);
+    // Keep the interactive hero pose separate from the camera flying between sections.
+    const heroCamera = new THREE.PerspectiveCamera(35, 1);
+    const controls = new OrbitControls(heroCamera, focusRef?.current ?? renderer.domElement);
     controls.enablePan = false;
     controls.enableZoom = false;
     controls.enableDamping = true;
@@ -65,6 +69,15 @@ export default function DrumViewer({ className, style, focusRef }: {
     controls.addEventListener("start", () => { controls.autoRotate = false; });
 
     let mirror: Reflector | null = null;
+    let disposed = false;
+    let progress = 0;
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const controllerCenter = new THREE.Vector3();
+    const controllerSize = new THREE.Vector3();
+    const controllerPosition = new THREE.Vector3();
+    const lookTarget = new THREE.Vector3();
+    let hasController = false;
+    let width = 0, height = 0;
 
     // Fit the model's bounding sphere to the focus box, then widen the frustum out to the whole
     // canvas with setViewOffset — same framing, but the stage can spill past the box.
@@ -72,17 +85,33 @@ export default function DrumViewer({ className, style, focusRef }: {
     const fit = () => {
       const { clientWidth: w, clientHeight: h } = host;
       if (!w || !h) return;
-      renderer.setSize(w, h, false);
+      if (w !== width || h !== height) {
+        renderer.setSize(w, h, false);
+        width = w;
+        height = h;
 
       // Match the reflection to the canvas. A fixed low-res target stretched over the whole view
       // is what makes the reflection look blocky; the blur should come from the mip bias, not from
       // magnifying texels.
       const scale = Math.min(renderer.getPixelRatio(), MIRROR_MAX / Math.max(w, h));
       mirror?.getRenderTarget().setSize(Math.round(w * scale), Math.round(h * scale));
+      }
 
       const hostRect = host.getBoundingClientRect();
       const focus = focusRef?.current?.getBoundingClientRect();
-      const box = focus?.width && focus.height ? focus : hostRect;
+      const detail = controllerRef?.current?.getBoundingClientRect();
+      const scrollTop = scrollRef?.current?.scrollTop ?? 0;
+      const sectionHeight = scrollRef?.current?.clientHeight ?? h;
+      const heroBox = focus?.width && focus.height ? focus : hostRect;
+      const detailBox = detail?.width && detail.height ? detail : heroBox;
+      // Slot positions are measured at their own section's resting scroll position.
+      // Interpolating those positions keeps the scene on screen throughout the flight.
+      const box = {
+        width: THREE.MathUtils.lerp(heroBox.width, detailBox.width, progress),
+        height: THREE.MathUtils.lerp(heroBox.height, detailBox.height, progress),
+        left: THREE.MathUtils.lerp(heroBox.left, detailBox.left, progress),
+        top: THREE.MathUtils.lerp(heroBox.top + scrollTop, detailBox.top + scrollTop - sectionHeight, progress),
+      };
 
       camera.aspect = box.width / box.height;
       camera.setViewOffset(box.width, box.height, hostRect.left - box.left, hostRect.top - box.top, w, h);
@@ -99,18 +128,35 @@ export default function DrumViewer({ className, style, focusRef }: {
       const dist = Math.max(radius / Math.sin(Math.min(vFov, hFov) / 2) / FILL, (radius * pxPerUnit) / margin);
       // Clip planes have to follow the model's scale, or the far plane saws through the mirror
       // floor as the fit distance grows — a straight line across it, then no reflection at all.
-      camera.near = dist * 0.01;
+      camera.near = radius * 0.001;
       camera.far = dist + FLOOR_RADIUS * radius * 2;
       camera.updateProjectionMatrix();
 
-      const dir = camera.position.clone().sub(controls.target).normalize();
-      camera.position.copy(controls.target).addScaledVector(dir, dist);
+      const dir = heroCamera.position.clone().sub(controls.target).normalize();
+      heroCamera.position.copy(controls.target).addScaledVector(dir, dist);
       controls.minDistance = controls.maxDistance = dist;
-      controls.update();
+
+      // A near-overhead view keeps the controls readable without a singular lookAt at 90°.
+      const detailDistance = Math.max(
+        controllerSize.x / (2 * Math.tan(hFov / 2)),
+        controllerSize.z / (2 * Math.tan(vFov / 2)),
+      ) * 1.22 + controllerSize.y;
+      controllerPosition.copy(controllerCenter).add(new THREE.Vector3(0, detailDistance, detailDistance * 0.06));
+      camera.position.lerpVectors(heroCamera.position, controllerPosition, progress);
+      camera.position.y += Math.sin(progress * Math.PI) * radius * 0.65;
+      lookTarget.lerpVectors(controls.target, controllerCenter, progress);
+      camera.lookAt(lookTarget);
+
+      // The shared canvas leaves with section two, so it cannot sit behind section three.
+      host.style.opacity = String(1 - THREE.MathUtils.smoothstep(scrollTop / sectionHeight, 1, 1.75));
     };
 
     let frame = 0;
     new GLTFLoader().load(MODEL_URL, (gltf) => {
+      if (disposed) {
+        disposeModel(gltf.scene);
+        return;
+      }
       const box = new THREE.Box3().setFromObject(gltf.scene);
       const sphere = box.getBoundingSphere(new THREE.Sphere());
       gltf.scene.position.sub(sphere.center);
@@ -119,6 +165,13 @@ export default function DrumViewer({ className, style, focusRef }: {
       });
       radius = sphere.radius * 1.05; // margin so it never kisses the edges
       scene.add(gltf.scene);
+      const controller = gltf.scene.getObjectByName('Controller_Low');
+      if (controller) {
+        const bounds = new THREE.Box3().setFromObject(controller);
+        bounds.getCenter(controllerCenter);
+        bounds.getSize(controllerSize);
+        hasController = true;
+      }
 
       const floorY = box.min.y - sphere.center.y;
       const rig = stage(radius, floorY);
@@ -127,7 +180,8 @@ export default function DrumViewer({ className, style, focusRef }: {
 
       // Aim slightly below the drum so it sits high in frame, leaving room for the reflection.
       controls.target.y = -radius * 0.18;
-      camera.position.set(0, radius * 0.3, radius);
+      heroCamera.position.set(0, radius * 0.3, radius);
+      width = height = 0; // size the newly created reflection target too
       fit();
       setReady(true);
 
@@ -135,40 +189,52 @@ export default function DrumViewer({ className, style, focusRef }: {
       // sweep across it. OrbitControls still owns the vertical orbit; we siphon off its azimuth
       // each frame — that keeps its damping, so the spin coasts to a stop like a real orbit.
       const model = gltf.scene;
-      const tick = () => {
+      let heroRotation = 0;
+      let previousTime = performance.now();
+      const tick = (time: number) => {
         frame = requestAnimationFrame(tick);
-        controls.update();
-        const azimuth = controls.getAzimuthalAngle();
-        model.rotation.y -= azimuth;
-        camera.position.sub(controls.target).applyAxisAngle(UP, -azimuth).add(controls.target);
-        camera.lookAt(controls.target);
+        const dt = Math.min((time - previousTime) / 1000, 0.05);
+        previousTime = time;
+        const scroll = scrollRef?.current;
+        const requested = hasController && scroll ? THREE.MathUtils.clamp(scroll.scrollTop / scroll.clientHeight, 0, 1) : 0;
+        const goal = reducedMotion.matches ? (requested >= 0.5 ? 1 : 0) : THREE.MathUtils.smoothstep(requested, 0, 1);
+        progress = reducedMotion.matches ? goal : THREE.MathUtils.damp(progress, goal, 9, dt);
+        if (Math.abs(progress - goal) < 0.0001) progress = goal;
+        controls.enabled = requested === 0 && progress === 0;
+        if (controls.enabled) {
+          const autoRotate = controls.autoRotate;
+          controls.autoRotate = autoRotate && !reducedMotion.matches;
+          controls.update(dt);
+          controls.autoRotate = autoRotate;
+          const azimuth = controls.getAzimuthalAngle();
+          heroRotation = THREE.MathUtils.euclideanModulo(heroRotation - azimuth + Math.PI, Math.PI * 2) - Math.PI;
+          heroCamera.position.sub(controls.target).applyAxisAngle(UP, -azimuth).add(controls.target);
+          heroCamera.lookAt(controls.target);
+        }
+        model.rotation.y = heroRotation * (1 - progress);
+        fit();
         renderer.render(scene, camera);
       };
-      tick();
+      frame = requestAnimationFrame(tick);
     });
 
     const ro = new ResizeObserver(fit);
     ro.observe(host);
     if (focusRef?.current) ro.observe(focusRef.current);
+    if (controllerRef?.current) ro.observe(controllerRef.current);
 
     return () => {
+      disposed = true;
       cancelAnimationFrame(frame);
       ro.disconnect();
       controls.dispose();
-      scene.traverse((o) => {
-        if (o instanceof Reflector) return o.dispose();
-        if (!(o instanceof THREE.Mesh)) return;
-        o.geometry.dispose();
-        for (const m of [o.material].flat()) {
-          for (const v of Object.values(m)) if (v instanceof THREE.Texture) v.dispose();
-          m.dispose();
-        }
-      });
+      disposeModel(scene);
+      scene.environment?.dispose();
       pmrem.dispose();
       renderer.dispose();
       renderer.domElement.remove();
     };
-  }, [focusRef]);
+  }, [focusRef, controllerRef, scrollRef]);
 
   return (
     <div
@@ -177,6 +243,18 @@ export default function DrumViewer({ className, style, focusRef }: {
       style={{ ...style, opacity: ready ? 1 : 0, transition: "opacity 500ms ease" }}
     />
   );
+}
+
+function disposeModel(root: THREE.Object3D) {
+  root.traverse((o) => {
+    if (o instanceof Reflector) return o.dispose();
+    if (!(o instanceof THREE.Mesh)) return;
+    o.geometry.dispose();
+    for (const m of [o.material].flat()) {
+      for (const v of Object.values(m)) if (v instanceof THREE.Texture) v.dispose();
+      m.dispose();
+    }
+  });
 }
 
 // ponytail: no cast shadow — on a near-black page it only flattened the background texture;
