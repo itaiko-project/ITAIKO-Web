@@ -3,7 +3,6 @@
     "nav": {
       "home": "Home",
       "buy": "Negozio",
-      "github": "GitHub",
       "configurator": "Configuratore",
       "next": "Sezione successiva"
     },
@@ -16,30 +15,21 @@
     },
     "cta": {
       "configure": "Configura il tuo tamburo",
-      "demo": "Prova il configuratore senza tamburo",
-      "buy": "Acquista ora",
-      "buildYourOwn": "Costruisci il tuo",
-      "checkCompatibility": "Verifica compatibilità"
+      "demo": "Provalo senza tamburo",
+      "buy": "Acquista ora"
     },
     "onigiri1": {
       "article": "La",
       "name": "Onigiri-con",
       "tagline1": "Polling a 1000 Hz e sensibilità per ogni pad, regolata dal vivo nel browser",
-      "tagline2": "Compatibile anche con i tamburi TaikoForce e ZhongTaiko"
-    },
-    "onigiri2": {
-      "heading": "Tutto sull'E-box",
-      "tagline1": "Tutti i pulsanti che ti servono e un display OLED per regolazioni rapide",
-      "tagline2": "Funziona con PC, PS3, PS4, Nintendo Switch e il cabinato arcade originale"
-    },
-    "footer": {
-      "browserRequirement": "Il configuratore funziona nei browser con WebSerial: Chrome, Edge, Opera"
+      "tagline2": "Compatibile anche con i tamburi TaikoForce e ZhongTaiko",
+      "tryMe": "Provami!"
     },
     "specs": {
       "polling": "Polling USB",
       "pollingValue": "1000 Hz",
       "modes": "Modalità controller",
-      "modesValue": "12",
+      "modesValue": "8",
       "display": "Display OLED",
       "displayValue": "128×64",
       "openSource": "Open source",
@@ -70,15 +60,15 @@
         },
         {
           "label": "Modalità",
-          "value": "12 modalità controller"
+          "value": "8 modalità controller"
         },
         {
           "label": "Piattaforme",
-          "value": "PC · PS3 · PS4 · Nintendo Switch · cabinato arcade originale"
+          "value": "PC · PS3 · PS4 · Nintendo Switch · cabinato arcade originale · USB MIDI"
         },
         {
           "label": "Configurazione",
-          "value": "Menu OLED sul tamburo o configuratore web (browser con WebSerial)"
+          "value": "Menu OLED sul tamburo, o configuratore web in modalità tastiera (browser con WebSerial)"
         },
         {
           "label": "Origine",
@@ -91,11 +81,11 @@
       "items": [
         {
           "q": "Con quali piattaforme funziona?",
-          "a": "PC, PS3, PS4, Nintendo Switch e il cabinato arcade originale. Scegli la modalità dal menu OLED o dal configuratore web."
+          "a": "PC, PS3, PS4, Nintendo Switch e il cabinato arcade originale. In modalità MIDI suona anche come batteria USB MIDI in qualsiasi software musicale. Scegli la modalità dal menu OLED o dal configuratore web."
         },
         {
           "q": "Devo installare un software?",
-          "a": "No. Apri il configuratore in un browser con WebSerial (Chrome, Edge, Opera), collega il tamburo e sei pronto. Tutto è regolabile anche dall'OLED dell'e-box."
+          "a": "No. Metti il tamburo in modalità tastiera (Keyboard P1 o P2), collegalo e apri il configuratore in un browser con WebSerial (Chrome, Edge, Opera, Firefox). Tutto è regolabile anche dall'OLED dell'E-box."
         },
         {
           "q": "Il tamburo registra colpi che non ho dato. Cosa faccio?",
