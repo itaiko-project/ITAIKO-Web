@@ -4,6 +4,7 @@ import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 import { Reflector } from "three/examples/jsm/objects/Reflector.js";
+import { Onigiri, OLED_H, OLED_W, type Button } from "./oled";
 
 const MODEL_URL = "iTaiko.opt2k.glb";
 
@@ -19,6 +20,7 @@ const MIRROR_BLUR = 0.0;    // keep bright reflections from bleeding into a broa
 const MIRROR_SPREAD = 0.04; // only a trace of distance softening
 const FLOOR_RADIUS = 1.6;   // mirror disc radius, in bounding-sphere radii
 const MIRROR_MAX = 2048;    // longest side of the reflection render target
+const DETAIL_FILL = 1.02;   // controller slide: >1 leaves breathing room around the onigiri, lower zooms closer
 
 const UP = new THREE.Vector3(0, 1, 0);
 
@@ -77,6 +79,7 @@ export default function DrumViewer({ className, style, focusRef, controllerRef, 
     const controllerPosition = new THREE.Vector3();
     const lookTarget = new THREE.Vector3();
     let hasController = false;
+    let onigiri: ReturnType<typeof wireOnigiri> | null = null;
     let width = 0, height = 0;
 
     // Fit the model's bounding sphere to the focus box, then widen the frustum out to the whole
@@ -140,7 +143,7 @@ export default function DrumViewer({ className, style, focusRef, controllerRef, 
       const detailDistance = Math.max(
         controllerSize.x / (2 * Math.tan(hFov / 2)),
         controllerSize.z / (2 * Math.tan(vFov / 2)),
-      ) * 1.22 + controllerSize.y;
+      ) * DETAIL_FILL + controllerSize.y / 2;
       controllerPosition.copy(controllerCenter).add(new THREE.Vector3(0, detailDistance, detailDistance * 0.06));
       camera.position.lerpVectors(heroCamera.position, controllerPosition, progress);
       camera.position.y += Math.sin(progress * Math.PI) * radius * 0.65;
@@ -165,13 +168,39 @@ export default function DrumViewer({ className, style, focusRef, controllerRef, 
       });
       radius = sphere.radius * 1.05; // margin so it never kisses the edges
       scene.add(gltf.scene);
+      // Box3.setFromObject does not update parents, so push the re-centering down first.
+      gltf.scene.updateMatrixWorld(true);
       const controller = gltf.scene.getObjectByName('Controller_Low');
       if (controller) {
         const bounds = new THREE.Box3().setFromObject(controller);
         bounds.getCenter(controllerCenter);
         bounds.getSize(controllerSize);
         hasController = true;
+        if (controllerRef?.current) onigiri = wireOnigiri(controller, camera, renderer.domElement, controllerRef.current);
       }
+      // Everything but the onigiri fades out on the controller slide.
+      // A transparent mesh blends its own back and inner faces in draw order, which flickers as
+      // the drum turns. A depth-only twin drawn in the opaque pass leaves just the front surface.
+      const fading: THREE.Material[] = [];
+      const depthOnly = new THREE.MeshBasicMaterial({ colorWrite: false });
+      const masks: THREE.Mesh[] = [];
+      for (const name of ['iTaiko_Low', 'Cavo_Low']) gltf.scene.getObjectByName(name)?.traverse((o) => {
+        if (!(o instanceof THREE.Mesh) || o.userData.mask) return;
+        fading.push(...[o.material].flat());
+        const mask = new THREE.Mesh(o.geometry, depthOnly);
+        mask.userData.mask = true;
+        mask.visible = false;
+        o.add(mask);
+        masks.push(mask);
+      });
+      const fadeOthers = (opacity: number) => {
+        for (const m of fading) {
+          m.opacity = opacity;
+          m.transparent = opacity < 1;
+          m.visible = opacity > 0;
+        }
+        for (const mask of masks) mask.visible = opacity > 0 && opacity < 1;
+      };
 
       const floorY = box.min.y - sphere.center.y;
       const rig = stage(radius, floorY);
@@ -212,6 +241,9 @@ export default function DrumViewer({ className, style, focusRef, controllerRef, 
           heroCamera.lookAt(controls.target);
         }
         model.rotation.y = heroRotation * (1 - progress);
+        // Gone by mid-flight so the camera never looks through a half-faded drum up close.
+        fadeOthers(1 - THREE.MathUtils.smoothstep(progress, 0.1, 0.6));
+        onigiri?.update(time, progress);
         fit();
         renderer.render(scene, camera);
       };
@@ -228,6 +260,7 @@ export default function DrumViewer({ className, style, focusRef, controllerRef, 
       cancelAnimationFrame(frame);
       ro.disconnect();
       controls.dispose();
+      onigiri?.dispose();
       disposeModel(scene);
       scene.environment?.dispose();
       pmrem.dispose();
@@ -243,6 +276,235 @@ export default function DrumViewer({ className, style, focusRef, controllerRef, 
       style={{ ...style, opacity: ready ? 1 : 0, transition: "opacity 500ms ease" }}
     />
   );
+}
+
+// Controls on the onigiri, in Controller_Low's local space (read off the mesh's raised caps): x, z, cap radius.
+// "dpad" resolves to a direction from where it was hit. The remaining caps do nothing in the firmware's menu.
+type Key = Button | "dpad" | "reset";
+const KEYS: Record<"start" | "select" | "reset" | "east" | "south" | "dpad", [number, number, number]> = {
+  start: [-1.348, 11.234, 0.15],  // +
+  select: [1.289, 11.225, 0.15],  // −
+  reset: [0.211, 10.259, 0.14],   // the Pico's RUN pin
+  east: [2.094, 12.453, 0.2],     // confirm
+  south: [1.617, 12.922, 0.2],    // back
+  dpad: [-1.659, 12.446, 0.58],
+};
+// Square caps get outlines that follow them: half-extents of the reset cap, and the D-pad's reach and arm half-width.
+const RESET_HALF = [0.107, 0.131];
+const DPAD_REACH = 0.556, DPAD_ARM = 0.194;
+const OUTLINE_GAP = 0.022, OUTLINE_WIDTH = 0.03;
+const CAP_BASE_Y = 0.848;         // housing surface around the caps; rings sit here
+const ACCENT = 0x2f6bff;          // matches the page's blue buttons
+const RIPPLE_PERIOD = 1.6;        // s, the "press me" pulse on + and −
+
+/** Which controls do something on the current screen. */
+function enabledKeys(screen: Onigiri["screen"]): (keyof typeof KEYS)[] {
+  if (screen === "idle") return ["start", "select", "reset"];
+  if (screen === "menu") return ["dpad", "east", "south", "reset"];
+  return ["reset"];
+}
+
+function keyAt(x: number, z: number, enabled: (keyof typeof KEYS)[]): Key | null {
+  for (const key of enabled) {
+    const [kx, kz, r] = KEYS[key];
+    const dx = x - kx, dz = z - kz;
+    if (Math.hypot(dx, dz) > r * 1.15) continue;
+    if (key !== "dpad") return key;
+    if (Math.max(Math.abs(dx), Math.abs(dz)) < 0.1) return null; // dead centre of the cross
+    return Math.abs(dx) > Math.abs(dz) ? (dx < 0 ? "left" : "right") : (dz < 0 ? "up" : "down");
+  }
+  return null;
+}
+
+// The housing's opening over the screen quad (Controller_Low local space), measured from the mesh. The quad itself
+// runs ~0.03 further on each side, under the bezel.
+const SCREEN_WINDOW = { x0: -0.674, x1: 0.631, z0: 12.33, z1: 13.023 };
+const SCREEN_PAD = 0.035;     // black border between the bezel and the first pixel column
+const PIXEL_FILL = 0.84;      // lit share of each pixel cell; the rest is the screen-door gap
+const OLED_LIT = [0.86, 0.93, 1.0]; // linear RGB; SSD1306 white has a faint cool cast
+const OLED_OFF = [0.004, 0.0045, 0.006]; // unlit pixels, barely visible against the black glass
+
+/**
+ * Runs the firmware menu on the onigiri's OLED and lets its 3D buttons drive it.
+ * `target` receives the pointer events (the canvas itself ignores them); `canvas` is only measured.
+ */
+function wireOnigiri(controller: THREE.Object3D, camera: THREE.Camera, canvas: HTMLCanvasElement, target: HTMLElement) {
+  let screen: THREE.Mesh | undefined;
+  controller.traverse((o) => {
+    if (o instanceof THREE.Mesh && [o.material].flat().some((m) => m.name === "Schermo_MAT")) screen = o;
+  });
+
+  const oled = new Onigiri(performance.now());
+  // One texel per OLED pixel, nearest-sampled; the shader draws each one as a lit cell with a dark gap.
+  const texels = new Uint8Array(OLED_W * OLED_H);
+  const texture = new THREE.DataTexture(texels, OLED_W, OLED_H, THREE.RedFormat);
+  texture.magFilter = texture.minFilter = THREE.NearestFilter;
+  const upload = () => {
+    for (let i = 0; i < texels.length; i++) texels[i] = oled.pixels[i] * 255;
+    texture.needsUpdate = true;
+  };
+  upload();
+
+  if (screen) {
+    // The quad's own UVs point into the material atlas, and the housing's window is a little smaller than the
+    // quad, so map the panel onto the window instead: centred, 2:1, inset by SCREEN_PAD. UV (0,0) is the panel's
+    // top-left pixel; anything outside 0..1 is rendered as black glass.
+    const { x0, x1, z0, z1 } = SCREEN_WINDOW;
+    const width = Math.min(x1 - x0, ((z1 - z0) * OLED_W) / OLED_H) - 2 * SCREEN_PAD;
+    const height = (width * OLED_H) / OLED_W;
+    const left = (x0 + x1 - width) / 2, top = (z0 + z1 - height) / 2;
+    const geometry = screen.geometry.clone();
+    const pos = geometry.getAttribute("position");
+    const uv = new THREE.Float32BufferAttribute(new Float32Array(pos.count * 2), 2);
+    for (const i of new Set(geometry.index!.array)) uv.setXY(i, (pos.getX(i) - left) / width, (pos.getZ(i) - top) / height);
+    geometry.setAttribute("uv", uv);
+    screen.geometry.dispose();
+    screen.geometry = geometry;
+    for (const m of [screen.material].flat()) m.dispose();
+    screen.material = new THREE.ShaderMaterial({
+      uniforms: { panel: { value: texture } },
+      vertexShader: `varying vec2 vUv;
+        void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
+      fragmentShader: `uniform sampler2D panel;
+        varying vec2 vUv;
+        void main() {
+          vec2 grid = vec2(${OLED_W}.0, ${OLED_H}.0);
+          vec2 p = vUv * grid;
+          float inside = step(0.0, vUv.x) * step(vUv.x, 1.0) * step(0.0, vUv.y) * step(vUv.y, 1.0);
+          float on = texture2D(panel, (floor(p) + 0.5) / grid).r * inside;
+          // Screen door: each pixel is a square of side ${PIXEL_FILL} with a dark gap around it. fwidth keeps the
+          // edge one screen pixel soft, so it fades to the average instead of shimmering when the screen is small.
+          vec2 d = abs(fract(p) - 0.5), w = fwidth(p);
+          vec2 cell = 1.0 - smoothstep(${PIXEL_FILL / 2} - w, ${PIXEL_FILL / 2} + w, d);
+          float mask = cell.x * cell.y;
+          vec3 lit = vec3(${OLED_LIT.join(", ")}), off = vec3(${OLED_OFF.join(", ")});
+          gl_FragColor = vec4(mix(off * inside, lit, on) * mask, 1.0);
+          #include <colorspace_fragment>
+        }`,
+    });
+  }
+
+  // Rings around the controls that currently do something; + and − also pulse, and fill up while held.
+  const ringMaterial = (opacity: number) => new THREE.MeshBasicMaterial({
+    color: ACCENT, transparent: true, opacity, depthWrite: false, toneMapped: false, side: THREE.DoubleSide,
+  });
+  const ringGeometry = (r: number, arc = Math.PI * 2): THREE.BufferGeometry =>
+    new THREE.RingGeometry(r * 1.12, r * 1.3, 48, 1, Math.PI / 2, -arc).rotateX(-Math.PI / 2);
+  /** A flat band around a square or cross cap: the cap's outline grown by the gap, minus itself grown by gap + width. */
+  const outlineGeometry = (key: keyof typeof KEYS, r: number): THREE.BufferGeometry => {
+    const polygon = (grow: number) => {
+      if (key === "reset") {
+        const [hx, hz] = [RESET_HALF[0] + grow, RESET_HALF[1] + grow];
+        return [[-hx, -hz], [hx, -hz], [hx, hz], [-hx, hz]];
+      }
+      const [l, a] = [DPAD_REACH + grow, DPAD_ARM + grow];
+      return [[-a, -l], [a, -l], [a, -a], [l, -a], [l, a], [a, a], [a, l], [-a, l], [-a, a], [-l, a], [-l, -a], [-a, -a]];
+    };
+    if (key !== "reset" && key !== "dpad") return ringGeometry(r);
+    const shape = new THREE.Shape(polygon(OUTLINE_GAP + OUTLINE_WIDTH).map(([x, y]) => new THREE.Vector2(x, y)));
+    shape.holes.push(new THREE.Path(polygon(OUTLINE_GAP).map(([x, y]) => new THREE.Vector2(x, y))));
+    return new THREE.ShapeGeometry(shape).rotateX(-Math.PI / 2);
+  };
+  const rings = Object.fromEntries(Object.entries(KEYS).map(([key, [x, z, r]]) => {
+    const ring = new THREE.Mesh(outlineGeometry(key as keyof typeof KEYS, r), ringMaterial(0.55));
+    ring.position.set(x, CAP_BASE_Y, z);
+    controller.add(ring);
+    return [key, ring];
+  }));
+  const hints = (["start", "select"] as const).map((key) => {
+    const [x, z, r] = KEYS[key];
+    const ripple = new THREE.Mesh(ringGeometry(r), ringMaterial(0));
+    const fill = new THREE.Mesh(new THREE.BufferGeometry(), ringMaterial(1));
+    ripple.position.set(x, CAP_BASE_Y, z);
+    fill.position.set(x, CAP_BASE_Y + 0.001, z);
+    controller.add(ripple, fill);
+    return { key, r, ripple, fill, arc: -1 };
+  });
+  const overlays = [...Object.values(rings), ...hints.flatMap((h) => [h.ripple, h.fill])];
+
+  let active = false;
+  let held: Key | null = null;
+  const raycaster = new THREE.Raycaster();
+  const ndc = new THREE.Vector2();
+  const local = new THREE.Vector3();
+  const pick = (e: PointerEvent): Key | null => {
+    if (!active) return null;
+    const r = canvas.getBoundingClientRect();
+    ndc.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+    raycaster.setFromCamera(ndc, camera);
+    const hit = raycaster.intersectObject(controller, true)[0];
+    if (!hit) return null;
+    controller.worldToLocal(local.copy(hit.point));
+    return keyAt(local.x, local.z, enabledKeys(oled.screen));
+  };
+  const release = () => {
+    if (held && held !== "reset" && held !== "dpad") oled.press(held, false);
+    held = null;
+  };
+  const onDown = (e: PointerEvent) => {
+    const key = pick(e);
+    if (!key) return;
+    e.preventDefault();
+    release();
+    if (key === "reset") return oled.reset();
+    held = key;
+    if (key !== "dpad") oled.press(key, true);
+    target.setPointerCapture(e.pointerId);
+  };
+  const onMove = (e: PointerEvent) => {
+    if (!held) target.style.cursor = pick(e) ? "pointer" : "";
+  };
+  const noMenu = (e: Event) => { if (held) e.preventDefault(); }; // long-press on touch would open one
+  target.addEventListener("pointerdown", onDown);
+  target.addEventListener("pointermove", onMove);
+  target.addEventListener("pointerup", release);
+  target.addEventListener("pointercancel", release);
+  target.addEventListener("contextmenu", noMenu);
+  target.style.userSelect = "none";
+
+  return {
+    /** `progress` is the camera's flight to the controller; the onigiri only takes input once it has landed. */
+    update(now: number, progress: number) {
+      active = progress === 1;
+      if (!active) release();
+      if (oled.update(now)) upload();
+
+      const show = THREE.MathUtils.smoothstep(progress, 0.85, 1);
+      const enabled = enabledKeys(oled.screen);
+      for (const [key, ring] of Object.entries(rings)) {
+        ring.visible = show > 0 && enabled.includes(key as keyof typeof KEYS);
+        ring.material.opacity = 0.55 * show;
+      }
+      const holding = oled.hotkeyProgress;
+      for (const h of hints) {
+        const idle = show > 0 && oled.screen === "idle";
+        const t = (now / 1000 / RIPPLE_PERIOD) % 1;
+        h.ripple.visible = idle && holding === 0;
+        h.ripple.scale.setScalar(1 + t * 0.9);
+        h.ripple.material.opacity = 0.7 * (1 - t) * show;
+        // ponytail: rebuilt only when the arc changes, i.e. while + or − is held
+        const arc = idle && held === h.key ? holding : 0;
+        h.fill.visible = arc > 0;
+        if (arc !== h.arc && arc > 0) {
+          h.fill.geometry.dispose();
+          h.fill.geometry = ringGeometry(h.r, arc * Math.PI * 2);
+        }
+        h.arc = arc;
+      }
+    },
+    dispose() {
+      target.removeEventListener("pointerdown", onDown);
+      target.removeEventListener("pointermove", onMove);
+      target.removeEventListener("pointerup", release);
+      target.removeEventListener("pointercancel", release);
+      target.removeEventListener("contextmenu", noMenu);
+      texture.dispose();
+      for (const o of overlays) {
+        o.geometry.dispose();
+        o.material.dispose();
+      }
+    },
+  };
 }
 
 function disposeModel(root: THREE.Object3D) {
