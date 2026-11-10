@@ -3,7 +3,6 @@
     "nav": {
       "home": "Home",
       "buy": "Shop",
-      "github": "GitHub",
       "configurator": "Configurator",
       "next": "Next section"
     },
@@ -16,30 +15,21 @@
     },
     "cta": {
       "configure": "Configure your drum",
-      "demo": "Try the configurator without a drum",
-      "buy": "Buy Now",
-      "buildYourOwn": "Build Your Own",
-      "checkCompatibility": "Check Compatibility"
+      "demo": "Try it without a drum",
+      "buy": "Buy now"
     },
     "onigiri1": {
       "article": "The",
       "name": "Onigiri-con",
       "tagline1": "1000 Hz polling and per-pad sensitivity, tuned live in the browser",
-      "tagline2": "Also fits TaikoForce and ZhongTaiko drums"
-    },
-    "onigiri2": {
-      "heading": "Everything on the E-box",
-      "tagline1": "All the buttons you need and an OLED screen for quick adjustments",
-      "tagline2": "Works with PC, PS3, PS4, Nintendo Switch and the original arcade cabinet"
-    },
-    "footer": {
-      "browserRequirement": "The configurator runs in WebSerial browsers: Chrome, Edge, Opera"
+      "tagline2": "Also fits TaikoForce and ZhongTaiko drums",
+      "tryMe": "Try me!"
     },
     "specs": {
       "polling": "USB polling",
       "pollingValue": "1000 Hz",
       "modes": "Controller modes",
-      "modesValue": "12",
+      "modesValue": "8",
       "display": "On-board OLED",
       "displayValue": "128×64",
       "openSource": "Open source",
@@ -50,7 +40,7 @@
       "rows": [
         {
           "label": "Body",
-          "value": "12 mm Italian birch"
+          "value": "8 mm Italian birch"
         },
         {
           "label": "Plates",
@@ -70,15 +60,15 @@
         },
         {
           "label": "Modes",
-          "value": "12 controller modes"
+          "value": "8 controller modes"
         },
         {
           "label": "Platforms",
-          "value": "PC · PS3 · PS4 · Nintendo Switch · original arcade cabinet"
+          "value": "PC · PS3 · PS4 · Nintendo Switch · original arcade cabinet · USB MIDI"
         },
         {
           "label": "Configuration",
-          "value": "On-drum OLED menu or web configurator (WebSerial browsers)"
+          "value": "On-drum OLED menu, or web configurator in keyboard mode (WebSerial browsers)"
         },
         {
           "label": "Origin",
@@ -91,11 +81,11 @@
       "items": [
         {
           "q": "Which platforms does it work with?",
-          "a": "PC, PS3, PS4, Nintendo Switch and the original arcade cabinet. Pick the mode from the OLED menu or the web configurator."
+          "a": "PC, PS3, PS4, Nintendo Switch and the original arcade cabinet. In MIDI mode it also plays as a USB MIDI drum in any music software. Pick the mode from the OLED menu or the web configurator."
         },
         {
           "q": "Do I need to install software?",
-          "a": "No. Open the configurator in a WebSerial browser (Chrome, Edge, Opera), plug in the drum, done. Everything is also adjustable from the OLED on the E-box."
+          "a": "No. Put the drum in keyboard mode (Keyboard P1 or P2), plug it in and open the configurator in a WebSerial browser (Chrome, Edge, Opera, Firefox). Everything is also adjustable from the OLED on the E-box."
         },
         {
           "q": "My drum registers hits I didn't make. What do I do?",

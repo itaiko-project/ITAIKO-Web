@@ -48,8 +48,10 @@ type Pose = { box: { left: number; top: number; width: number; height: number };
  * Scrolling flies the camera through `tour` (one section each, right after the hero) and then onto the
  * controller in the section after those.
  */
-export default function DrumViewer({ className, style, focusRef, controllerRef, scrollRef, tour = [] }: {
+export default function DrumViewer({ className, style, focusRef, controllerRef, scrollRef, tour = [], hint }: {
   className?: string;
+  /** Label for the arrow pointing at + on the controller slide, until the first press. */
+  hint?: string;
   style?: React.CSSProperties;
   focusRef?: React.RefObject<HTMLElement | null>;
   controllerRef?: React.RefObject<HTMLElement | null>;
@@ -57,6 +59,7 @@ export default function DrumViewer({ className, style, focusRef, controllerRef, 
   tour?: TourStop[];
 }) {
   const hostRef = useRef<HTMLDivElement>(null);
+  const hintLabelRef = useRef<HTMLSpanElement | null>(null);
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
@@ -81,6 +84,12 @@ export default function DrumViewer({ className, style, focusRef, controllerRef, 
       host.append(line, dot);
       return { line, dot };
     });
+    // "Try me" arrow at the onigiri's + key; wireOnigiri places and hides it.
+    const hintEls = { line: document.createElement("div"), label: document.createElement("span") };
+    hintEls.line.className = "onigiri-hint-line";
+    hintEls.label.className = "onigiri-hint";
+    host.append(hintEls.line, hintEls.label);
+    hintLabelRef.current = hintEls.label;
 
     const scene = new THREE.Scene();
     const pmrem = new THREE.PMREMGenerator(renderer);
@@ -259,7 +268,7 @@ export default function DrumViewer({ className, style, focusRef, controllerRef, 
         bounds.getCenter(controllerCenter);
         bounds.getSize(controllerSize);
         hasController = true;
-        if (controllerRef?.current) onigiri = wireOnigiri(controller, camera, renderer.domElement, controllerRef.current);
+        if (controllerRef?.current) onigiri = wireOnigiri(controller, camera, renderer.domElement, controllerRef.current, hintEls);
       }
       // Everything but the onigiri fades out on the controller slide.
       // A transparent mesh blends its own back and inner faces in draw order, which flickers as
@@ -357,8 +366,15 @@ export default function DrumViewer({ className, style, focusRef, controllerRef, 
       renderer.dispose();
       renderer.domElement.remove();
       for (const c of callouts) { c.dot.remove(); c.line.remove(); }
+      hintEls.line.remove();
+      hintEls.label.remove();
     };
   }, [focusRef, controllerRef, scrollRef, tour]);
+
+  // Separate from the scene so a language switch doesn't reload the model.
+  useEffect(() => {
+    if (hintLabelRef.current) hintLabelRef.current.textContent = hint ?? "";
+  }, [hint]);
 
   return (
     <div
@@ -419,7 +435,10 @@ const OLED_OFF = [0.004, 0.0045, 0.006]; // unlit pixels, barely visible against
  * Runs the firmware menu on the onigiri's OLED and lets its 3D buttons drive it.
  * `target` receives the pointer events (the canvas itself ignores them); `canvas` is only measured.
  */
-function wireOnigiri(controller: THREE.Object3D, camera: THREE.Camera, canvas: HTMLCanvasElement, target: HTMLElement) {
+function wireOnigiri(
+  controller: THREE.Object3D, camera: THREE.Camera, canvas: HTMLCanvasElement, target: HTMLElement,
+  hint?: { line: HTMLElement; label: HTMLElement },
+) {
   let screen: THREE.Mesh | undefined;
   controller.traverse((o) => {
     if (o instanceof THREE.Mesh && [o.material].flat().some((m) => m.name === "Schermo_MAT")) screen = o;
@@ -514,6 +533,7 @@ function wireOnigiri(controller: THREE.Object3D, camera: THREE.Camera, canvas: H
   const overlays = [...Object.values(rings), ...hints.flatMap((h) => [h.ripple, h.fill])];
 
   let active = false;
+  let tried = false; // the hint goes away for good after the first press
   let held: Key | null = null;
   const raycaster = new THREE.Raycaster();
   const ndc = new THREE.Vector2();
@@ -536,6 +556,7 @@ function wireOnigiri(controller: THREE.Object3D, camera: THREE.Camera, canvas: H
     const key = pick(e);
     if (!key) return;
     e.preventDefault();
+    tried = true;
     release();
     if (key === "reset") return oled.reset();
     held = key;
@@ -552,6 +573,36 @@ function wireOnigiri(controller: THREE.Object3D, camera: THREE.Camera, canvas: H
   target.addEventListener("pointercancel", release);
   target.addEventListener("contextmenu", noMenu);
   target.style.userSelect = "none";
+
+  // Arrow from beside the housing (left of it, or above when there's no room) to the + key.
+  const bounds = new THREE.Box3();
+  const p = new THREE.Vector3();
+  const toScreen = (v: THREE.Vector3) => {
+    v.project(camera);
+    return [(v.x + 1) / 2 * canvas.clientWidth, (1 - v.y) / 2 * canvas.clientHeight];
+  };
+  const placeHint = ({ line, label }: { line: HTMLElement; label: HTMLElement }) => {
+    const [kx, ky] = toScreen(controller.localToWorld(p.set(KEYS.start[0], CAP_BASE_Y, KEYS.start[1])));
+    bounds.setFromObject(controller);
+    let minX = Infinity, minY = Infinity, maxX = -Infinity;
+    for (let i = 0; i < 8; i++) {
+      const [x, y] = toScreen(p.set(i & 1 ? bounds.max.x : bounds.min.x, i & 2 ? bounds.max.y : bounds.min.y, i & 4 ? bounds.max.z : bounds.min.z));
+      minX = Math.min(minX, x); minY = Math.min(minY, y); maxX = Math.max(maxX, x);
+    }
+    // Grow with the controller on screen: 1 at ~480px wide (where 20px text reads right), capped for huge screens.
+    const k = THREE.MathUtils.clamp((maxX - minX) / 480, 1, 2.4);
+    line.style.setProperty("--hint-scale", String(k));
+    label.style.setProperty("--hint-scale", String(k));
+    const lw = label.offsetWidth, lh = label.offsetHeight, GAP = 12 * k, PAD = 8 * k, KEY_CLEAR = 20 * k;
+    const left = minX - GAP - PAD - lw >= 16;
+    const [sx, sy] = left ? [minX - GAP, ky - 40 * k] : [kx - 32 * k, Math.max(minY - GAP, lh + 16)];
+    label.style.transform = left
+      ? `translate(${sx - PAD - lw}px, ${sy - lh / 2}px)`
+      : `translate(${sx - lw / 2}px, ${sy - PAD - lh}px)`;
+    const len = Math.max(Math.hypot(kx - sx, ky - sy) - KEY_CLEAR, 0);
+    line.style.width = `${len}px`;
+    line.style.transform = `translate(${sx}px, ${sy}px) rotate(${Math.atan2(ky - sy, kx - sx)}rad)`;
+  };
 
   return {
     /** `progress` is the camera's flight to the controller; the onigiri only takes input once it has landed. */
@@ -581,6 +632,11 @@ function wireOnigiri(controller: THREE.Object3D, camera: THREE.Camera, canvas: H
           h.fill.geometry = ringGeometry(h.r, arc * Math.PI * 2);
         }
         h.arc = arc;
+      }
+      if (hint) {
+        const on = active && oled.screen === "idle" && !tried;
+        hint.line.style.opacity = hint.label.style.opacity = on ? "1" : "0";
+        if (on) placeHint(hint);
       }
     },
     dispose() {
