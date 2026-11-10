@@ -1,6 +1,5 @@
 @import "tailwindcss";
 @import "tw-animate-css";
-@import "./typeface.css";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -176,11 +175,7 @@
   text-rendering: optimizeLegibility;
 }
 
-@utility cormorant {
-  font-family: 'Cormorant Garamond', Georgia, serif;
-}
-
-/* Text-grade serif for body copy (Apple Garamond is display-only) */
+/* Body copy next to the display face */
 @utility serif-body {
   font-family: var(--font-text);
   font-feature-settings: "kern" 1, "liga" 1;
@@ -253,4 +248,44 @@
   height: 1px;
   transform-origin: 0 50%;
   background: color-mix(in oklch, var(--foreground) 55%, transparent);
+}
+
+/* "Try me" arrow at the onigiri's + key (positioned per frame by DrumViewer) */
+.onigiri-hint,
+.onigiri-hint-line {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 300ms var(--ease-out-soft);
+}
+.onigiri-hint {
+  font-family: var(--font-display);
+  font-size: calc(20px * var(--hint-scale, 1));
+  line-height: 1;
+  white-space: nowrap;
+  color: var(--foreground);
+}
+.onigiri-hint-line {
+  height: calc(2px * var(--hint-scale, 1));
+  transform-origin: 0 50%;
+  background: var(--brand);
+}
+.onigiri-hint-line::after {
+  /* arrowhead: two borders of a square turned 45°, tip on the line's end */
+  content: "";
+  position: absolute;
+  right: 1px;
+  top: 50%;
+  --head: calc(10px * var(--hint-scale, 1));
+  width: var(--head);
+  height: var(--head);
+  margin-top: calc(var(--head) / -2);
+  border-top: calc(2px * var(--hint-scale, 1)) solid var(--brand);
+  border-right: calc(2px * var(--hint-scale, 1)) solid var(--brand);
+  transform: rotate(45deg);
+}
+@media (prefers-reduced-motion: reduce) {
+  .onigiri-hint, .onigiri-hint-line { transition: none; }
 }

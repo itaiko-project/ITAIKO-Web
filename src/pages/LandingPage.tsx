@@ -74,11 +74,10 @@ export function LandingPage() {
   const controllerSlotRef = useRef<HTMLDivElement>(null);
   const headingRef = useScaleToFit([logo.h, logo.heroW, logo.heroH]);
   const productHeadingRef = useScaleToFit([logo.h, logo.heroH]);
-  const product2HeadingRef = useScaleToFit([logo.h, logo.heroH]);
   const scrollRef = useRef<HTMLDivElement>(null);
   const [isLastSection, setIsLastSection] = useState(false);
   const [activeSection, setActiveSection] = useState(0);
-  const SECTION_COUNT = 8; // hero, 3 tour, 2 onigiri, specs, faq (+footer)
+  const SECTION_COUNT = 6; // hero, 3 tour, onigiri, specs+faq (+footer)
   type Item = Record<string, string>;
   const [tour] = useState(() => TOUR.map((s) => ({ ...s, slot: createRef<HTMLDivElement>(), card: createRef<HTMLDivElement>() })));
   const tourText = t("landing.tour.items", { returnObjects: true }) as Item[];
@@ -153,6 +152,7 @@ export function LandingPage() {
           controllerRef={controllerSlotRef}
           scrollRef={scrollRef}
           tour={tour}
+          hint={t("landing.onigiri1.tryMe")}
         />
       </Suspense>
 
@@ -172,22 +172,15 @@ export function LandingPage() {
               <ShoppingCart size={16} strokeWidth={1.5} aria-hidden />
               {t("landing.nav.buy")}
             </a>
-            <a
-              href="https://github.com/itaiko-project"
-              className="text-sm md:text-base text-foreground/70 hover:text-foreground transition-colors whitespace-nowrap"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              {t("landing.nav.github")}
-            </a>
-            <Link
-              to="/configure"
-              className="flex items-center gap-2 text-sm md:text-base text-foreground/70 hover:text-foreground transition-colors whitespace-nowrap"
-            >
-              <Wrench size={16} strokeWidth={1.5} aria-hidden />
-              {t("landing.nav.configurator")}
-            </Link>
             <LanguageSwitcher />
+            {/* Off-white primary: the one loud thing in the header, distinct from the blue Buy */}
+            <Button asChild size="sm" className="md:h-9 md:px-4">
+              <Link to="/configure">
+                <Wrench size={16} strokeWidth={1.5} aria-hidden />
+                <span className="hidden md:inline">{t("landing.cta.configure")}</span>
+                <span className="md:hidden">{t("landing.nav.configurator")}</span>
+              </Link>
+            </Button>
           </div>
         </nav>
       </div>
@@ -270,9 +263,6 @@ export function LandingPage() {
               <Button asChild size="lg" className="bg-brand-fill hover:bg-brand-fill-hover text-white border-0">
                 <a href="#">{t("landing.cta.buy")}</a>
               </Button>
-              <Button asChild size="lg" variant="outline">
-                <Link to="/configure">{t("landing.cta.configure")}</Link>
-              </Button>
             </div>
           </div>
           </div>{/* /main row */}
@@ -327,14 +317,10 @@ export function LandingPage() {
         >
           {/* NARROW: heading above image */}
           <div className="reveal md:hidden flex justify-center items-end px-6 pt-1 pb-0 flex-shrink-0">
-            <div className="flex items-baseline gap-2 flex-nowrap" style={{ fontSize: 'clamp(40px, 10vw, 72px)' }}>
-              <h2 className="display-font leading-none whitespace-nowrap shrink-0" style={{ fontSize: '1em' }}>
-                {t("landing.onigiri1.article")}
-              </h2>
-              <span className="display-font leading-none whitespace-nowrap shrink-0" style={{ fontSize: `${onigiriRatio}em` }}>
-                {t("landing.onigiri1.name")}
-              </span>
-            </div>
+            <h2 className="display-font flex flex-col items-start leading-none whitespace-nowrap" style={{ fontSize: 'clamp(40px, 10vw, 72px)' }}>
+              <span className="text-[0.5em]">{t("landing.onigiri1.article")}</span>
+              <span>{t("landing.onigiri1.name")}</span>
+            </h2>
           </div>
 
           {/* The shared scene flies into the controller already beside the drum. */}
@@ -350,31 +336,16 @@ export function LandingPage() {
               <Button asChild size="lg" className="bg-brand-fill hover:bg-brand-fill-hover text-white border-0">
                 <a href="#">{t("landing.cta.buy")}</a>
               </Button>
-              <Button asChild size="lg" variant="outline">
-                <a href="#">{t("landing.cta.checkCompatibility")}</a>
-              </Button>
             </div>
           </div>
 
           {/* WIDE: text column */}
           <div className="reveal reveal-stagger hidden md:flex flex-col justify-center flex-shrink-0" style={{ maxWidth: 'min(720px, 60vw)' }}>
-            <div
-              ref={productHeadingRef}
-              className="flex items-baseline gap-2 flex-nowrap w-max"
-              style={{ fontSize: `${logo.h}px`, transformOrigin: 'left center' }}
-            >
-              <h2
-                className="display-font leading-none whitespace-nowrap shrink-0"
-                style={{ fontSize: '1em' }}
-              >
-                {t("landing.onigiri1.article")}
+            <div ref={productHeadingRef} className="w-max" style={{ fontSize: `${logo.h}px` }}>
+              <h2 className="display-font flex flex-col items-start leading-none whitespace-nowrap">
+                <span>{t("landing.onigiri1.article")}</span>
+                <span style={{ fontSize: `${onigiriRatio}em` }}>{t("landing.onigiri1.name")}</span>
               </h2>
-              <span
-                className="display-font leading-none whitespace-nowrap shrink-0"
-                style={{ fontSize: `${onigiriRatio}em` }}
-              >
-                {t("landing.onigiri1.name")}
-              </span>
             </div>
             <p className="serif-body text-2xl text-muted-foreground leading-snug mt-3">
               {t("landing.onigiri1.tagline1")}
@@ -386,125 +357,43 @@ export function LandingPage() {
               <Button asChild size="lg" className="bg-brand-fill hover:bg-brand-fill-hover text-white border-0">
                 <a href="#">{t("landing.cta.buy")}</a>
               </Button>
-              <Button asChild size="lg" variant="outline">
-                <a href="#">{t("landing.cta.checkCompatibility")}</a>
-              </Button>
             </div>
           </div>
         </div>
 
-        {/* ── Section 6: Onigiri-con (features) ── */}
-        <div
-          data-section={5}
-          className="flex flex-col overflow-hidden"
-          style={{ scrollSnapAlign: 'start', flexShrink: 0, flexBasis: '100%' }}
-        >
-          {/* main row */}
-          <div className="flex flex-col justify-center md:flex-row-reverse md:items-center md:justify-center md:gap-4 md:px-16 flex-1 min-h-0 w-full">
-          {/* NARROW: heading above image */}
-          <div className="reveal md:hidden flex justify-center items-end px-10 pt-1 pb-0 flex-shrink-0 relative z-10">
-            <h2 className="display-font leading-none overflow-visible" style={{ fontSize: 'clamp(40px, 10vw, 72px)' }}>
-              {t("landing.onigiri2.heading")}
-            </h2>
-          </div>
-
-          {/* ONIGIRI WIREFRAME — desktop */}
-          <div className="reveal hidden md:block flex-shrink-0 pointer-events-none">
-            <img
-              src="onigiri_wireframe.png"
-              alt=""
-              className="drag-none select-none block"
-              style={{ maxHeight: '80vh', maxWidth: '33vw', height: 'auto', width: 'auto' }}
-            />
-          </div>
-
-          {/* ONIGIRI WIREFRAME — mobile (smaller: this slide also carries the footer) */}
-          <div className="reveal md:hidden flex-shrink-0 pointer-events-none flex justify-center">
-            <img
-              src="onigiri_wireframe.png"
-              alt=""
-              className="drag-none select-none"
-              style={{ maxHeight: '44vh', maxWidth: '100%' }}
-            />
-          </div>
-
-          {/* NARROW: tagline + button */}
-          <div className="reveal reveal-stagger md:hidden flex flex-col items-center px-10 pt-0 pb-3 gap-3 flex-shrink-0">
-            <p className="serif-body text-xl text-center text-muted-foreground leading-snug">
-              {t("landing.onigiri2.tagline1")}<br />
-              {t("landing.onigiri2.tagline2")}
-            </p>
-            <div className="flex gap-3">
-              <Button asChild size="lg" variant="outline">
-                <a href="https://github.com/itaiko-project" target="_blank" rel="noopener noreferrer">{t("landing.cta.buildYourOwn")}</a>
-              </Button>
-            </div>
-          </div>
-
-          {/* WIDE: text column */}
-          <div className="reveal reveal-stagger hidden md:flex flex-col justify-center flex-shrink-0" style={{ maxWidth: 'min(720px, 60vw)' }}>
-            <div
-              ref={product2HeadingRef}
-              className="flex items-baseline gap-2 flex-nowrap w-max"
-              style={{ fontSize: `${logo.heroH}px`, transformOrigin: 'left center' }}
-            >
-              <h2
-                className="display-font leading-none whitespace-nowrap shrink-0"
-                style={{ fontSize: '1em' }}
-              >
-                {t("landing.onigiri2.heading")}
-              </h2>
-            </div>
-            <p className="serif-body text-2xl text-muted-foreground leading-snug mt-3">
-              {t("landing.onigiri2.tagline1")}
-            </p>
-            <p className="serif-body text-xl text-muted-foreground leading-relaxed mt-2" style={{ maxWidth: 'min(580px, 55vw)' }}>
-              {t("landing.onigiri2.tagline2")}
-            </p>
-            <div className="mt-5">
-              <Button asChild size="lg" variant="outline">
-                <a href="https://github.com/itaiko-project" target="_blank" rel="noopener noreferrer">{t("landing.cta.buildYourOwn")}</a>
-              </Button>
-            </div>
-          </div>
-          </div>{/* /main row */}
-
-        </div>
-
-
-        {/* ── Section 7: Spec sheet ── */}
-        <section data-section={6} className="flex flex-col justify-center px-6 md:px-16 py-20" style={{ scrollSnapAlign: 'start', flexShrink: 0, minHeight: '100%' }}>
-          <div className="mx-auto max-w-3xl w-full">
-            <h2 className="reveal display-font leading-none" style={{ fontSize: 'clamp(40px, 7vw, 72px)' }}>{t("landing.specSheet.heading")}</h2>
-            <dl className="reveal reveal-stagger mt-8">
-              {specRows.map((r) => (
-                <div key={r.label} className="grid grid-cols-[7rem_1fr] md:grid-cols-[10rem_1fr] items-baseline gap-4 border-t py-3">
-                  <dt className="font-mono text-xs md:text-sm text-muted-foreground">{r.label}</dt>
-                  <dd>{r.value}</dd>
+        {/* ── Section 6: Specs + FAQ side by side, closing CTA + footer ── */}
+        <section data-section={5} className="flex flex-col" style={{ scrollSnapAlign: 'start', flexShrink: 0, minHeight: '100%' }}>
+          <div className="flex-1 flex flex-col justify-center px-6 md:px-16 pt-20 pb-16">
+            <div className="mx-auto max-w-6xl w-full">
+              <div className="grid gap-16 md:grid-cols-2 md:gap-16">
+                <div>
+                  <h2 className="reveal display-font leading-none" style={{ fontSize: 'clamp(32px, 4vw, 48px)' }}>{t("landing.specSheet.heading")}</h2>
+                  <dl className="reveal reveal-stagger mt-8">
+                    {specRows.map((r) => (
+                      <div key={r.label} className="grid grid-cols-[7rem_1fr] md:grid-cols-[8rem_1fr] items-baseline gap-4 border-t py-3">
+                        <dt className="font-mono text-xs md:text-sm text-muted-foreground">{r.label}</dt>
+                        <dd>{r.value}</dd>
+                      </div>
+                    ))}
+                  </dl>
                 </div>
-              ))}
-            </dl>
-          </div>
-        </section>
-
-        {/* ── Section 8: FAQ + closing CTA + footer ── */}
-        <section data-section={7} className="flex flex-col" style={{ scrollSnapAlign: 'start', flexShrink: 0, minHeight: '100%' }}>
-          <div className="flex-1 flex flex-col justify-center px-6 md:px-16 py-20">
-            <div className="mx-auto max-w-3xl w-full">
-              <h2 className="reveal display-font leading-none" style={{ fontSize: 'clamp(40px, 7vw, 72px)' }}>{t("landing.faq.heading")}</h2>
-              {/* ponytail: native <details>, no accordion component */}
-              <div className="reveal reveal-stagger mt-8">
-                {faq.map((f) => (
-                  <details key={f.q} className="group border-t py-4">
-                    <summary className="cursor-pointer list-none flex justify-between gap-4 font-medium">
-                      {f.q}
-                      <span className="text-muted-foreground transition-transform group-open:rotate-45">+</span>
-                    </summary>
-                    <p className="mt-2 text-muted-foreground leading-relaxed">{f.a}</p>
-                  </details>
-                ))}
+                <div>
+                  <h2 className="reveal display-font leading-none" style={{ fontSize: 'clamp(32px, 4vw, 48px)' }}>{t("landing.faq.heading")}</h2>
+                  {/* ponytail: native <details>, no accordion component */}
+                  <div className="reveal reveal-stagger mt-8">
+                    {faq.map((f) => (
+                      <details key={f.q} className="group border-t py-3">
+                        <summary className="cursor-pointer list-none flex justify-between gap-4 font-medium">
+                          {f.q}
+                          <span className="text-muted-foreground transition-transform group-open:rotate-45">+</span>
+                        </summary>
+                        <p className="mt-2 text-muted-foreground leading-relaxed">{f.a}</p>
+                      </details>
+                    ))}
+                  </div>
+                </div>
               </div>
-              <div className="reveal reveal-stagger mt-14 text-center">
+              <div className="reveal reveal-stagger mt-16 text-center">
                 <h2 className="display-font leading-none" style={{ fontSize: 'clamp(36px, 6vw, 60px)' }}>{t("landing.closing.heading")}</h2>
                 <p className="serif-body text-xl text-muted-foreground mt-3">{t("landing.closing.tagline")}</p>
                 <div className="mt-5 flex justify-center gap-3">
@@ -521,21 +410,16 @@ export function LandingPage() {
 
           {/* Footer pinned to the bottom of the last slide */}
           <footer className="seigaiha-footer border-t flex-shrink-0 py-4">
-            <div className="px-4 md:px-16 grid grid-cols-3 items-center text-sm text-foreground">
-              <span className="hidden md:inline">{t("landing.footer.browserRequirement")}</span>
-              <span className="md:hidden" />
-              <div className="flex justify-center">
-                <a
-                  href="https://github.com/itaiko-project"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-foreground/70 hover:text-foreground transition-colors"
-                  aria-label="GitHub"
-                >
-                  <GitHubIcon size={20} />
-                </a>
-              </div>
-              <span />
+            <div className="px-4 md:px-16 flex justify-center">
+              <a
+                href="https://github.com/itaiko-project"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-foreground/70 hover:text-foreground transition-colors"
+                aria-label="GitHub"
+              >
+                <GitHubIcon size={20} />
+              </a>
             </div>
           </footer>
         </section>
