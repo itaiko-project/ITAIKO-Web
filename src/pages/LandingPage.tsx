@@ -1,10 +1,20 @@
-import { lazy, Suspense, useEffect, useRef, useState } from "react";
+import { createRef, lazy, Suspense, useEffect, useRef, useState } from "react";
+import type { TourStop } from "@/components/DrumViewer";
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import { ChevronDown, ShoppingCart, Wrench } from "lucide-react";
 
 const DrumViewer = lazy(() => import("@/components/DrumViewer"));
+
+// Close-ups between the hero and the controller, one slide each. Coordinates are in the GLB's space
+// (head faces +z, leans back ~35°, floor at y = 0); see TourStop.
+const TOUR: Omit<TourStop, "slot" | "card">[] = [
+  { target: [0, 13.5, 0.5], size: 11, yaw: 28, elevation: 16, anchor: [0, 14, 1.2] },        // head / steel plates
+  { target: [0, 12.5, -1.5], size: 12, yaw: 205, elevation: 16, anchor: [-2.5, 14.5, -2] },  // birch back
+  { target: [1.5, 10, 1], size: 14.5, yaw: 58, elevation: 24, anchor: [6.3, 2.5, 5.5] },      // stand, bachi cradle
+];
 
 // ponytail: the reveal observer grabs .reveal nodes once on mount, so an HMR swap leaves the new
 // nodes unobserved and stuck at opacity 0. Full reload in dev instead of debugging a phantom.
@@ -49,32 +59,6 @@ function useLogoSizes() {
   return sizes;
 }
 
-function ChevronDownIcon({ size = 28 }: { size?: number }) {
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <polyline points="6 9 12 15 18 9" />
-    </svg>
-  );
-}
-
-function WrenchIcon({ size = 14 }: { size?: number }) {
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
-    </svg>
-  );
-}
-
-function CartIcon({ size = 14 }: { size?: number }) {
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <circle cx="9" cy="21" r="1" />
-      <circle cx="20" cy="21" r="1" />
-      <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
-    </svg>
-  );
-}
-
 function GitHubIcon({ size = 20 }: { size?: number }) {
   return (
     <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
@@ -94,7 +78,12 @@ export function LandingPage() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [isLastSection, setIsLastSection] = useState(false);
   const [activeSection, setActiveSection] = useState(0);
-  const SECTION_COUNT = 3; // hero + 2 onigiri; footer rides at the bottom of the last slide
+  const SECTION_COUNT = 8; // hero, 3 tour, 2 onigiri, specs, faq (+footer)
+  type Item = Record<string, string>;
+  const [tour] = useState(() => TOUR.map((s) => ({ ...s, slot: createRef<HTMLDivElement>(), card: createRef<HTMLDivElement>() })));
+  const tourText = t("landing.tour.items", { returnObjects: true }) as Item[];
+  const specRows = t("landing.specSheet.rows", { returnObjects: true }) as Item[];
+  const faq = t("landing.faq.items", { returnObjects: true }) as Item[];
 
   const onigiriRatio = logo.heroH / logo.h;
 
@@ -163,12 +152,13 @@ export function LandingPage() {
           focusRef={drumSlotRef}
           controllerRef={controllerSlotRef}
           scrollRef={scrollRef}
+          tour={tour}
         />
       </Suspense>
 
       {/* ── Navbar (transparent, floating over the hero) ── */}
       <div className="relative flex-shrink-0 h-0 z-40">
-        <nav className="absolute top-0 left-0 right-0 flex items-center justify-between px-3 md:px-8 pt-3 pb-3">
+        <nav className="absolute top-0 left-0 right-0 flex items-center justify-between px-4 md:px-8 py-3">
           <Link to="/">
             <img
               src="itaiko.png"
@@ -178,8 +168,8 @@ export function LandingPage() {
             />
           </Link>
           <div className="flex items-center gap-3 md:gap-8">
-            <a href="#" className="flex items-center gap-1 text-sm md:text-base text-foreground/70 hover:text-foreground transition-colors whitespace-nowrap">
-              <CartIcon size={13} />
+            <a href="#" className="flex items-center gap-2 text-sm md:text-base text-foreground/70 hover:text-foreground transition-colors whitespace-nowrap">
+              <ShoppingCart size={16} strokeWidth={1.5} aria-hidden />
               {t("landing.nav.buy")}
             </a>
             <a
@@ -192,9 +182,9 @@ export function LandingPage() {
             </a>
             <Link
               to="/configure"
-              className="flex items-center gap-1 text-sm md:text-base text-foreground/70 hover:text-foreground transition-colors whitespace-nowrap"
+              className="flex items-center gap-2 text-sm md:text-base text-foreground/70 hover:text-foreground transition-colors whitespace-nowrap"
             >
-              <WrenchIcon size={13} />
+              <Wrench size={16} strokeWidth={1.5} aria-hidden />
               {t("landing.nav.configurator")}
             </Link>
             <LanguageSwitcher />
@@ -220,7 +210,7 @@ export function LandingPage() {
           {/* NARROW: heading above drum */}
           <div className="reveal md:hidden flex justify-center items-end px-6 pt-1 pb-0 flex-shrink-0 pointer-events-auto">
             <div className="flex items-center gap-1 flex-nowrap" style={{ fontSize: 'clamp(40px, 10vw, 72px)' }}>
-              <h1 className="garamond font-light leading-none whitespace-nowrap shrink-0" style={{ fontSize: '1em' }}>
+              <h1 className="display-font leading-none whitespace-nowrap shrink-0" style={{ fontSize: '1em' }}>
                 {t("landing.hero.welcome")}
               </h1>
               <img
@@ -238,10 +228,10 @@ export function LandingPage() {
           {/* NARROW: tagline + button */}
           <div className="reveal reveal-stagger md:hidden flex flex-col items-center px-10 pt-0 pb-3 gap-3 flex-shrink-0 pointer-events-auto">
             <p className="serif-body text-2xl text-center text-muted-foreground leading-snug">
-              {t("landing.hero.tagline1a")}<em>{t("landing.hero.tagline1b")}</em><br />
+              {t("landing.hero.tagline1a")}<span className="text-foreground">{t("landing.hero.tagline1b")}</span><br />
               {t("landing.hero.tagline2")}
             </p>
-            <Button asChild size="lg" className="bg-blue-600 hover:bg-blue-700 text-white border-0">
+            <Button asChild size="lg" className="bg-brand-fill hover:bg-brand-fill-hover text-white border-0">
               <a href="#">{t("landing.cta.buy")}</a>
             </Button>
           </div>
@@ -254,7 +244,7 @@ export function LandingPage() {
               style={{ fontSize: `${logo.h}px`, transformOrigin: 'left center' }}
             >
               <h1
-                className="garamond font-light leading-none whitespace-nowrap shrink-0"
+                className="display-font leading-none whitespace-nowrap shrink-0"
                 style={{ fontSize: '1em' }}
               >
                 {t("landing.hero.welcome")}
@@ -267,21 +257,21 @@ export function LandingPage() {
               />
             </div>
             <p className="serif-body text-2xl text-muted-foreground leading-snug mt-3">
-              {t("landing.hero.tagline1a")}<em>{t("landing.hero.tagline1b")}</em><br />
+              {t("landing.hero.tagline1a")}<span className="text-foreground">{t("landing.hero.tagline1b")}</span><br />
               {t("landing.hero.tagline2")}
             </p>
             <p className="serif-body text-xl text-muted-foreground leading-relaxed mt-3" style={{ maxWidth: 'min(580px, 55vw)' }}>
-              {t("landing.hero.subtitle")}
+              {t("landing.hero.subtitle")}.{" "}
+              <Link to="/configure?demo=true" className="text-foreground underline decoration-foreground/30 underline-offset-4 hover:decoration-foreground transition-colors">
+                {t("landing.cta.demo")}
+              </Link>
             </p>
             <div className="mt-5 flex gap-3">
-              <Button asChild size="lg" className="bg-blue-600 hover:bg-blue-700 text-white border-0">
+              <Button asChild size="lg" className="bg-brand-fill hover:bg-brand-fill-hover text-white border-0">
                 <a href="#">{t("landing.cta.buy")}</a>
               </Button>
               <Button asChild size="lg" variant="outline">
                 <Link to="/configure">{t("landing.cta.configure")}</Link>
-              </Button>
-              <Button asChild size="sm" variant="ghost" className="text-muted-foreground hover:text-foreground text-xs">
-                <Link to="/configure?demo=true">{t("landing.cta.demo")}</Link>
               </Button>
             </div>
           </div>
@@ -297,29 +287,53 @@ export function LandingPage() {
                 [t("landing.specs.openSourceValue"), t("landing.specs.openSource")],
               ].map(([value, label]) => (
                 <div key={label}>
-                  <div className="garamond text-3xl md:text-4xl leading-none text-foreground">{value}</div>
-                  <div className="mt-1.5 text-xs md:text-sm uppercase tracking-wider text-muted-foreground">{label}</div>
+                  <div className="display-font text-3xl md:text-4xl leading-none text-foreground tabular-nums">{value}</div>
+                  <div className="mt-2 font-mono text-xs md:text-sm text-muted-foreground">{label}</div>
                 </div>
               ))}
             </div>
           </div>
         </div>
 
-        {/* ── Section 2: Onigiri-con ── */}
+        {/* ── Sections 2–4: drum tour — the shared scene flies to each slot and points at the part ── */}
+        {tour.map((stop, k) => {
+          const item = tourText[k];
+          return (
+            <section
+              key={k}
+              data-section={k + 1}
+              className={`flex flex-col justify-center pt-14 md:pt-0 md:items-center md:justify-center md:gap-12 md:px-16 overflow-hidden ${k % 2 ? 'md:flex-row' : 'md:flex-row-reverse'}`}
+              style={{ scrollSnapAlign: 'start', flexShrink: 0, flexBasis: '100%' }}
+            >
+              <div ref={stop.slot} aria-hidden className="flex-shrink-0 h-[46vh] w-full md:h-[78vh] md:w-[44vw]" />
+              <div ref={stop.card} className="reveal reveal-stagger relative z-10 flex-shrink-0 px-8 pt-5 pb-8 bg-background/85 backdrop-blur-sm md:bg-transparent md:backdrop-blur-none md:p-0 md:max-w-[30vw]">
+                <p className="font-mono text-xs md:text-sm text-brand-ink tabular-nums">
+                  {String(k + 1).padStart(2, '0')} / {String(tour.length).padStart(2, '0')} · {item.eyebrow}
+                </p>
+                {item.stat && <div className="display-font leading-none mt-3 tabular-nums" style={{ fontSize: 'clamp(48px, 7vw, 96px)' }}>{item.stat}</div>}
+                <h2 className="display-font leading-tight mt-2" style={{ fontSize: 'clamp(26px, 3vw, 40px)' }}>{item.title}</h2>
+                <p className="serif-body text-lg text-muted-foreground leading-relaxed mt-3">{item.body}</p>
+                {k === 0 && <p className="mt-4 font-mono text-xs md:text-sm text-muted-foreground">{t("landing.tour.made")}</p>}
+              </div>
+            </section>
+          );
+        })}
+
+        {/* ── Section 5: Onigiri-con ── */}
         <div
-          data-section={1}
-          className="flex flex-col justify-center md:flex-row-reverse md:items-center md:justify-center md:gap-4 md:px-16 overflow-hidden"
+          data-section={4}
+          className="flex flex-col justify-center md:flex-row md:items-center md:justify-center md:gap-4 md:px-16 overflow-hidden"
           style={{ scrollSnapAlign: 'start', flexShrink: 0, flexBasis: '100%' }}
         >
           {/* NARROW: heading above image */}
           <div className="reveal md:hidden flex justify-center items-end px-6 pt-1 pb-0 flex-shrink-0">
             <div className="flex items-baseline gap-2 flex-nowrap" style={{ fontSize: 'clamp(40px, 10vw, 72px)' }}>
-              <h2 className="garamond font-light leading-none whitespace-nowrap shrink-0" style={{ fontSize: '1em' }}>
+              <h2 className="display-font leading-none whitespace-nowrap shrink-0" style={{ fontSize: '1em' }}>
                 {t("landing.onigiri1.article")}
               </h2>
-              <em className="garamond font-light leading-none whitespace-nowrap shrink-0" style={{ fontSize: `${onigiriRatio}em` }}>
+              <span className="display-font leading-none whitespace-nowrap shrink-0" style={{ fontSize: `${onigiriRatio}em` }}>
                 {t("landing.onigiri1.name")}
-              </em>
+              </span>
             </div>
           </div>
 
@@ -333,7 +347,7 @@ export function LandingPage() {
               {t("landing.onigiri1.tagline2")}
             </p>
             <div className="flex gap-3">
-              <Button asChild size="lg" className="bg-blue-600 hover:bg-blue-700 text-white border-0">
+              <Button asChild size="lg" className="bg-brand-fill hover:bg-brand-fill-hover text-white border-0">
                 <a href="#">{t("landing.cta.buy")}</a>
               </Button>
               <Button asChild size="lg" variant="outline">
@@ -350,17 +364,17 @@ export function LandingPage() {
               style={{ fontSize: `${logo.h}px`, transformOrigin: 'left center' }}
             >
               <h2
-                className="garamond font-light leading-none whitespace-nowrap shrink-0"
+                className="display-font leading-none whitespace-nowrap shrink-0"
                 style={{ fontSize: '1em' }}
               >
-                The
+                {t("landing.onigiri1.article")}
               </h2>
-              <em
-                className="garamond font-light leading-none whitespace-nowrap shrink-0"
+              <span
+                className="display-font leading-none whitespace-nowrap shrink-0"
                 style={{ fontSize: `${onigiriRatio}em` }}
               >
-                Onigiri-con
-              </em>
+                {t("landing.onigiri1.name")}
+              </span>
             </div>
             <p className="serif-body text-2xl text-muted-foreground leading-snug mt-3">
               {t("landing.onigiri1.tagline1")}
@@ -369,7 +383,7 @@ export function LandingPage() {
               {t("landing.onigiri1.tagline2")}
             </p>
             <div className="mt-5 flex gap-3">
-              <Button asChild size="lg" className="bg-blue-600 hover:bg-blue-700 text-white border-0">
+              <Button asChild size="lg" className="bg-brand-fill hover:bg-brand-fill-hover text-white border-0">
                 <a href="#">{t("landing.cta.buy")}</a>
               </Button>
               <Button asChild size="lg" variant="outline">
@@ -379,28 +393,28 @@ export function LandingPage() {
           </div>
         </div>
 
-        {/* ── Section 3: Onigiri-con (features) + footer ── */}
+        {/* ── Section 6: Onigiri-con (features) ── */}
         <div
-          data-section={2}
+          data-section={5}
           className="flex flex-col overflow-hidden"
           style={{ scrollSnapAlign: 'start', flexShrink: 0, flexBasis: '100%' }}
         >
           {/* main row */}
-          <div className="flex flex-col justify-center md:flex-row md:items-center md:justify-center md:gap-4 md:px-16 flex-1 min-h-0 w-full">
+          <div className="flex flex-col justify-center md:flex-row-reverse md:items-center md:justify-center md:gap-4 md:px-16 flex-1 min-h-0 w-full">
           {/* NARROW: heading above image */}
           <div className="reveal md:hidden flex justify-center items-end px-10 pt-1 pb-0 flex-shrink-0 relative z-10">
-            <h2 className="garamond font-light leading-none overflow-visible" style={{ fontSize: 'clamp(40px, 10vw, 72px)' }}>
-              <em>{t("landing.onigiri2.heading")}</em>
+            <h2 className="display-font leading-none overflow-visible" style={{ fontSize: 'clamp(40px, 10vw, 72px)' }}>
+              {t("landing.onigiri2.heading")}
             </h2>
           </div>
 
           {/* ONIGIRI WIREFRAME — desktop */}
-          <div className="reveal reveal-left hidden md:block flex-shrink-0 pointer-events-none">
+          <div className="reveal hidden md:block flex-shrink-0 pointer-events-none">
             <img
               src="onigiri_wireframe.png"
               alt=""
-              className="drag-none select-none block float-soft"
-              style={{ maxHeight: '80vh', maxWidth: '33vw', height: 'auto', width: 'auto', animationDelay: '-3s' }}
+              className="drag-none select-none block"
+              style={{ maxHeight: '80vh', maxWidth: '33vw', height: 'auto', width: 'auto' }}
             />
           </div>
 
@@ -409,8 +423,8 @@ export function LandingPage() {
             <img
               src="onigiri_wireframe.png"
               alt=""
-              className="drag-none select-none float-soft"
-              style={{ maxHeight: '44vh', maxWidth: '100%', animationDelay: '-3s' }}
+              className="drag-none select-none"
+              style={{ maxHeight: '44vh', maxWidth: '100%' }}
             />
           </div>
 
@@ -435,10 +449,10 @@ export function LandingPage() {
               style={{ fontSize: `${logo.heroH}px`, transformOrigin: 'left center' }}
             >
               <h2
-                className="garamond font-light leading-none whitespace-nowrap shrink-0"
+                className="display-font leading-none whitespace-nowrap shrink-0"
                 style={{ fontSize: '1em' }}
               >
-                <em>{t("landing.onigiri2.heading")}</em>
+                {t("landing.onigiri2.heading")}
               </h2>
             </div>
             <p className="serif-body text-2xl text-muted-foreground leading-snug mt-3">
@@ -454,6 +468,56 @@ export function LandingPage() {
             </div>
           </div>
           </div>{/* /main row */}
+
+        </div>
+
+
+        {/* ── Section 7: Spec sheet ── */}
+        <section data-section={6} className="flex flex-col justify-center px-6 md:px-16 py-20" style={{ scrollSnapAlign: 'start', flexShrink: 0, minHeight: '100%' }}>
+          <div className="mx-auto max-w-3xl w-full">
+            <h2 className="reveal display-font leading-none" style={{ fontSize: 'clamp(40px, 7vw, 72px)' }}>{t("landing.specSheet.heading")}</h2>
+            <dl className="reveal reveal-stagger mt-8">
+              {specRows.map((r) => (
+                <div key={r.label} className="grid grid-cols-[7rem_1fr] md:grid-cols-[10rem_1fr] items-baseline gap-4 border-t py-3">
+                  <dt className="font-mono text-xs md:text-sm text-muted-foreground">{r.label}</dt>
+                  <dd>{r.value}</dd>
+                </div>
+              ))}
+            </dl>
+          </div>
+        </section>
+
+        {/* ── Section 8: FAQ + closing CTA + footer ── */}
+        <section data-section={7} className="flex flex-col" style={{ scrollSnapAlign: 'start', flexShrink: 0, minHeight: '100%' }}>
+          <div className="flex-1 flex flex-col justify-center px-6 md:px-16 py-20">
+            <div className="mx-auto max-w-3xl w-full">
+              <h2 className="reveal display-font leading-none" style={{ fontSize: 'clamp(40px, 7vw, 72px)' }}>{t("landing.faq.heading")}</h2>
+              {/* ponytail: native <details>, no accordion component */}
+              <div className="reveal reveal-stagger mt-8">
+                {faq.map((f) => (
+                  <details key={f.q} className="group border-t py-4">
+                    <summary className="cursor-pointer list-none flex justify-between gap-4 font-medium">
+                      {f.q}
+                      <span className="text-muted-foreground transition-transform group-open:rotate-45">+</span>
+                    </summary>
+                    <p className="mt-2 text-muted-foreground leading-relaxed">{f.a}</p>
+                  </details>
+                ))}
+              </div>
+              <div className="reveal reveal-stagger mt-14 text-center">
+                <h2 className="display-font leading-none" style={{ fontSize: 'clamp(36px, 6vw, 60px)' }}>{t("landing.closing.heading")}</h2>
+                <p className="serif-body text-xl text-muted-foreground mt-3">{t("landing.closing.tagline")}</p>
+                <div className="mt-5 flex justify-center gap-3">
+                  <Button asChild size="lg" className="bg-brand-fill hover:bg-brand-fill-hover text-white border-0">
+                    <a href="#">{t("landing.cta.buy")}</a>
+                  </Button>
+                  <Button asChild size="lg" variant="outline">
+                    <Link to="/configure?demo=true">{t("landing.cta.configure")}</Link>
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
 
           {/* Footer pinned to the bottom of the last slide */}
           <footer className="seigaiha-footer border-t flex-shrink-0 py-4">
@@ -474,7 +538,7 @@ export function LandingPage() {
               <span />
             </div>
           </footer>
-        </div>
+        </section>
 
       </div>
 
@@ -490,14 +554,15 @@ export function LandingPage() {
         />
         <button
           onClick={goToNext}
-          className={`absolute bottom-2 left-1/2 -translate-x-1/2 z-10 text-white/70 hover:text-white transition-all duration-500 animate-bounce ${
+          className={`absolute bottom-2 left-1/2 -translate-x-1/2 z-10 text-foreground/70 hover:text-foreground transition-[color,opacity] duration-300 ${
             isLastSection ? 'opacity-0 pointer-events-none' : 'opacity-100 pointer-events-auto'
           }`}
-          aria-label="Sezione successiva"
+          aria-label={t("landing.nav.next")}
         >
-          <ChevronDownIcon size={32} />
+          <ChevronDown size={32} strokeWidth={1.5} aria-hidden />
         </button>
       </div>
+
 
       {/* ── Scroll dots ── */}
       <div className="fixed right-4 md:right-6 top-1/2 -translate-y-1/2 z-40 flex flex-col gap-3">
@@ -505,12 +570,11 @@ export function LandingPage() {
           <button
             key={i}
             onClick={() => {
-              const el = scrollRef.current;
-              if (el) el.scrollTo({ top: i * el.clientHeight, behavior: 'smooth' });
+              scrollRef.current?.querySelector(`[data-section="${i}"]`)?.scrollIntoView({ behavior: 'smooth' });
             }}
             aria-label={`Section ${i + 1}`}
-            className={`w-2.5 h-2.5 rounded-full transition-all duration-300 ${
-              activeSection === i ? 'bg-foreground scale-125' : 'bg-foreground/30 hover:bg-foreground/60'
+            className={`w-2.5 h-2.5 rounded-full transition-colors duration-150 ${
+              activeSection === i ? 'bg-foreground' : 'bg-foreground/30 hover:bg-foreground/60'
             }`}
           />
         ))}

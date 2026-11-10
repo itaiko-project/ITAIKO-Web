@@ -3,19 +3,20 @@
     "nav": {
       "home": "Home",
       "buy": "Negozio",
-      "github": "Github",
-      "configurator": "Configuratore"
+      "github": "GitHub",
+      "configurator": "Configuratore",
+      "next": "Sezione successiva"
     },
     "hero": {
       "welcome": "Ecco",
-      "subtitle": "Configurabile direttamente dal browser, nessun software da scaricare!",
-      "tagline1a": "Il miglior controller Taiko ",
-      "tagline1b": "in stile Arcade",
-      "tagline2": "completamente personalizzabile e open source"
+      "subtitle": "Si configura dal browser, senza installare nulla",
+      "tagline1a": "Un tamburo taiko ",
+      "tagline1b": "in stile arcade",
+      "tagline2": "costruito in Italia, open source fino al firmware"
     },
     "cta": {
       "configure": "Configura il tuo tamburo",
-      "demo": "(clicca qui per provarlo senza un tamburo)",
+      "demo": "Prova il configuratore senza tamburo",
       "buy": "Acquista ora",
       "buildYourOwn": "Costruisci il tuo",
       "checkCompatibility": "Verifica compatibilità"
@@ -23,16 +24,16 @@
     "onigiri1": {
       "article": "La",
       "name": "Onigiri-con",
-      "tagline1": "Input senza latenza, letture perfette. Porta il tuo tamburo al livello successivo!!",
-      "tagline2": "Compatibile anche con il tuo vecchio TaikoForce e ZhongTaiko!"
+      "tagline1": "Polling a 1000 Hz e sensibilità per ogni pad, regolata dal vivo nel browser",
+      "tagline2": "Compatibile anche con i tamburi TaikoForce e ZhongTaiko"
     },
     "onigiri2": {
-      "heading": "L'e-box più completa",
-      "tagline1": "Tutti i pulsanti che ti servono, un display OLED per regolazioni rapide.",
-      "tagline2": "Compatibile con PC, PS3, PS4, NSwitch e persino con l'Arcade originale!"
+      "heading": "Tutto sull'E-box",
+      "tagline1": "Tutti i pulsanti che ti servono e un display OLED per regolazioni rapide",
+      "tagline2": "Funziona con PC, PS3, PS4, Nintendo Switch e il cabinato arcade originale"
     },
     "footer": {
-      "browserRequirement": "Supportato da tutti i browser con WebSerial API"
+      "browserRequirement": "Il configuratore funziona nei browser con WebSerial: Chrome, Edge, Opera"
     },
     "specs": {
       "polling": "Polling USB",
@@ -43,6 +44,99 @@
       "displayValue": "128×64",
       "openSource": "Open source",
       "openSourceValue": "100%"
+    },
+    "specSheet": {
+      "heading": "Specifiche",
+      "rows": [
+        {
+          "label": "Corpo",
+          "value": "Betulla italiana da 12 mm"
+        },
+        {
+          "label": "Piastre",
+          "value": "Lamiera zincata da 3 mm, tagliata in Italia"
+        },
+        {
+          "label": "Supporto",
+          "value": "Leggero e stabile, con porta-bachi frontale"
+        },
+        {
+          "label": "Controller",
+          "value": "E-box Onigiri-con, OLED 128×64, hardware e firmware open source"
+        },
+        {
+          "label": "Polling",
+          "value": "USB 1000 Hz"
+        },
+        {
+          "label": "Modalità",
+          "value": "12 modalità controller"
+        },
+        {
+          "label": "Piattaforme",
+          "value": "PC · PS3 · PS4 · Nintendo Switch · cabinato arcade originale"
+        },
+        {
+          "label": "Configurazione",
+          "value": "Menu OLED sul tamburo o configuratore web (browser con WebSerial)"
+        },
+        {
+          "label": "Origine",
+          "value": "Progettato e costruito in Italia"
+        }
+      ]
+    },
+    "faq": {
+      "heading": "Domande frequenti",
+      "items": [
+        {
+          "q": "Con quali piattaforme funziona?",
+          "a": "PC, PS3, PS4, Nintendo Switch e il cabinato arcade originale. Scegli la modalità dal menu OLED o dal configuratore web."
+        },
+        {
+          "q": "Devo installare un software?",
+          "a": "No. Apri il configuratore in un browser con WebSerial (Chrome, Edge, Opera), collega il tamburo e sei pronto. Tutto è regolabile anche dall'OLED dell'e-box."
+        },
+        {
+          "q": "Il tamburo registra colpi che non ho dato. Cosa faccio?",
+          "a": "Abbassa la sensibilità di quel pad, dal menu OLED o dal monitor live del configuratore, dove vedi le letture di ogni pad in tempo reale."
+        },
+        {
+          "q": "Posso usare l'Onigiri-con con un altro tamburo?",
+          "a": "Sì. È compatibile anche con i tamburi TaikoForce e ZhongTaiko."
+        },
+        {
+          "q": "È davvero open source?",
+          "a": "Sì: firmware, hardware e questo configuratore sono su GitHub. Puoi anche costruirtene uno."
+        }
+      ]
+    },
+    "closing": {
+      "heading": "Prendi il tuo ITAIKO",
+      "tagline": "Betulla italiana, acciaio italiano, cervello open source"
+    },
+    "tour": {
+      "made": "Made in Italy",
+      "items": [
+        {
+          "eyebrow": "Superficie di battuta",
+          "stat": "3 mm",
+          "title": "Piastre in acciaio zincato",
+          "body": "Lamiera zincata spessa 3 mm sotto la pelle, tagliata in Italia, per un colpo deciso e con tanto rimbalzo."
+        },
+        {
+          "eyebrow": "Corpo",
+          "stat": "12 mm",
+          "title": "Betulla italiana",
+          "body": "Corpo in betulla da 12 mm, acquistata e tagliata in Italia, assemblato a mano. Rigido, risonante e fatto per resistere."
+        },
+        {
+          "eyebrow": "Supporto",
+          "stat": "",
+          "title": "Supporto più leggero e stabile",
+          "body": "Meno peso, base più larga, nessuna oscillazione sui colpi forti. Gli alloggi sul fronte tengono le bachi, sempre a portata di mano."
+        }
+      ]
     }
   },
   "configure": {

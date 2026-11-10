@@ -40,6 +40,10 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+  --color-brand: var(--brand);
+  --color-brand-fill: var(--brand-fill);
+  --color-brand-fill-hover: var(--brand-fill-hover);
+  --color-brand-ink: var(--brand-ink);
 }
 
 :root {
@@ -75,6 +79,12 @@
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
+  /* ITAIKO blue (#2f6bff, also the 3D accent in DrumViewer). Fill is darkened so white text
+     clears 4.5:1; ink is the shade for blue text on the page background. */
+  --brand: #2f6bff;
+  --brand-fill: #2558e6;
+  --brand-fill-hover: #1f4cd1;
+  --brand-ink: #1f4cd1;
 }
 
 .dark {
@@ -109,6 +119,7 @@
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 8%);
   --sidebar-ring: oklch(0.556 0 0);
+  --brand-ink: #7aa2ff;
 }
 
 @layer base {
@@ -145,8 +156,22 @@
   -o-user-drag: none;
 }
 
-@utility garamond {
-  font-family: 'Apple Garamond', Georgia, serif;
+/* Landing-page display face: Pixelify Sans (OFL), latin subset, sits on the logo's pixel grid */
+@font-face {
+  font-family: 'Pixelify Sans';
+  src: url('/PixelifySans-latin.woff2') format('woff2');
+  font-weight: 400 700;
+  font-display: swap;
+}
+:root {
+  --font-display: 'Pixelify Sans', ui-sans-serif, system-ui, sans-serif;
+  --font-text: ui-sans-serif, system-ui, sans-serif;
+  --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1); /* the one curve for the landing page */
+}
+
+@utility display-font {
+  font-family: var(--font-display);
+  font-synthesis: none; /* no faux italic on the display face */
   font-feature-settings: "kern" 1, "liga" 1;
   text-rendering: optimizeLegibility;
 }
@@ -157,7 +182,7 @@
 
 /* Text-grade serif for body copy (Apple Garamond is display-only) */
 @utility serif-body {
-  font-family: 'EB Garamond', Georgia, serif;
+  font-family: var(--font-text);
   font-feature-settings: "kern" 1, "liga" 1;
   text-rendering: optimizeLegibility;
 }
@@ -176,44 +201,27 @@
   display: none;
 }
 
-@keyframes float-soft {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-12px); }
-}
-
-@utility float-soft {
-  animation: float-soft 6s ease-in-out infinite;
-}
-
-/* ponytail: respect reduced-motion, no animation for those who opt out */
-@media (prefers-reduced-motion: reduce) {
-  .float-soft { animation: none; }
-}
-
 /* ── Entrance reveals (toggled by IntersectionObserver in LandingPage) ── */
 .reveal {
   opacity: 0;
-  transform: translateY(24px);
-  transition: opacity 0.7s ease-out, transform 0.7s ease-out;
+  transform: translateY(12px);
+  transition: opacity 0.5s var(--ease-out-soft), transform 0.5s var(--ease-out-soft);
   will-change: opacity, transform;
 }
-.reveal.reveal-left  { transform: translateX(-32px); }
-.reveal.reveal-right { transform: translateX(32px); }
 .reveal.is-visible   { opacity: 1; transform: none; }
 
 /* Stagger: container stays put, its direct children fade up in sequence */
 .reveal.reveal-stagger { opacity: 1; transform: none; transition: none; will-change: auto; }
 .reveal-stagger > * {
   opacity: 0;
-  transform: translateY(20px);
-  transition: opacity 0.6s ease-out, transform 0.6s ease-out;
+  transform: translateY(8px);
+  transition: opacity 0.45s var(--ease-out-soft), transform 0.45s var(--ease-out-soft);
 }
 .reveal-stagger.is-visible > * { opacity: 1; transform: none; }
-.reveal-stagger.is-visible > *:nth-child(1) { transition-delay: 0.10s; }
-.reveal-stagger.is-visible > *:nth-child(2) { transition-delay: 0.18s; }
-.reveal-stagger.is-visible > *:nth-child(3) { transition-delay: 0.26s; }
-.reveal-stagger.is-visible > *:nth-child(4) { transition-delay: 0.34s; }
-.reveal-stagger.is-visible > *:nth-child(5) { transition-delay: 0.42s; }
+.reveal-stagger.is-visible > *:nth-child(2) { transition-delay: 0.05s; }
+.reveal-stagger.is-visible > *:nth-child(3) { transition-delay: 0.10s; }
+.reveal-stagger.is-visible > *:nth-child(4) { transition-delay: 0.15s; }
+.reveal-stagger.is-visible > *:nth-child(5) { transition-delay: 0.20s; }
 
 @media (prefers-reduced-motion: reduce) {
   .reveal,
@@ -222,4 +230,27 @@
     transform: none !important;
     transition: none !important;
   }
+}
+
+/* Drum tour callouts (positioned per frame by DrumViewer) */
+.drum-callout-dot,
+.drum-callout-line {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  opacity: 0;
+}
+.drum-callout-dot {
+  width: 14px;
+  height: 14px;
+  margin: -7px 0 0 -7px;
+  border-radius: 9999px;
+  background: var(--brand);
+  box-shadow: 0 0 0 3px var(--background); /* neutral ring separates it from the wood/steel */
+}
+.drum-callout-line {
+  height: 1px;
+  transform-origin: 0 50%;
+  background: color-mix(in oklch, var(--foreground) 55%, transparent);
 }
