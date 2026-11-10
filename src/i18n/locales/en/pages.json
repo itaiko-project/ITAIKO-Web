@@ -3,19 +3,20 @@
     "nav": {
       "home": "Home",
       "buy": "Shop",
-      "github": "Github",
-      "configurator": "Configurator"
+      "github": "GitHub",
+      "configurator": "Configurator",
+      "next": "Next section"
     },
     "hero": {
-      "welcome": "Welcome to",
-      "subtitle": "Configurable directly via browser, no software download needed!",
-      "tagline1a": "World's best Taiko ",
-      "tagline1b": "Arcade Style Controller",
-      "tagline2": "fully customizable and open source"
+      "welcome": "Meet",
+      "subtitle": "Set it up from your browser, nothing to install",
+      "tagline1a": "An arcade-style ",
+      "tagline1b": "taiko drum",
+      "tagline2": "built in Italy, open source down to the firmware"
     },
     "cta": {
-      "configure": "Configure Your Drum",
-      "demo": "(click here to try it without a drum)",
+      "configure": "Configure your drum",
+      "demo": "Try the configurator without a drum",
       "buy": "Buy Now",
       "buildYourOwn": "Build Your Own",
       "checkCompatibility": "Check Compatibility"
@@ -23,16 +24,16 @@
     "onigiri1": {
       "article": "The",
       "name": "Onigiri-con",
-      "tagline1": "Lagless inputs, flawless readings. Take your drum to the next level!!",
-      "tagline2": "Also compatible with your old TaikoForce and ZhongTaiko!"
+      "tagline1": "1000 Hz polling and per-pad sensitivity, tuned live in the browser",
+      "tagline2": "Also fits TaikoForce and ZhongTaiko drums"
     },
     "onigiri2": {
-      "heading": "countless features",
-      "tagline1": "All the buttons you need, an OLED Screen for quick adjustments.",
-      "tagline2": "Compatible with PC, PS3, PS4, NSwitch and even Original Arcade!"
+      "heading": "Everything on the E-box",
+      "tagline1": "All the buttons you need and an OLED screen for quick adjustments",
+      "tagline2": "Works with PC, PS3, PS4, Nintendo Switch and the original arcade cabinet"
     },
     "footer": {
-      "browserRequirement": "Supported by all browsers WebSerial API"
+      "browserRequirement": "The configurator runs in WebSerial browsers: Chrome, Edge, Opera"
     },
     "specs": {
       "polling": "USB polling",
@@ -43,6 +44,99 @@
       "displayValue": "128×64",
       "openSource": "Open source",
       "openSourceValue": "100%"
+    },
+    "specSheet": {
+      "heading": "Specifications",
+      "rows": [
+        {
+          "label": "Body",
+          "value": "12 mm Italian birch"
+        },
+        {
+          "label": "Plates",
+          "value": "3 mm galvanized sheet steel, cut in Italy"
+        },
+        {
+          "label": "Stand",
+          "value": "Lightweight and stable, with front bachi holder"
+        },
+        {
+          "label": "Controller",
+          "value": "Onigiri-con E-box, 128×64 OLED, open-source hardware and firmware"
+        },
+        {
+          "label": "Polling",
+          "value": "1000 Hz USB"
+        },
+        {
+          "label": "Modes",
+          "value": "12 controller modes"
+        },
+        {
+          "label": "Platforms",
+          "value": "PC · PS3 · PS4 · Nintendo Switch · original arcade cabinet"
+        },
+        {
+          "label": "Configuration",
+          "value": "On-drum OLED menu or web configurator (WebSerial browsers)"
+        },
+        {
+          "label": "Origin",
+          "value": "Designed and built in Italy"
+        }
+      ]
+    },
+    "faq": {
+      "heading": "FAQ",
+      "items": [
+        {
+          "q": "Which platforms does it work with?",
+          "a": "PC, PS3, PS4, Nintendo Switch and the original arcade cabinet. Pick the mode from the OLED menu or the web configurator."
+        },
+        {
+          "q": "Do I need to install software?",
+          "a": "No. Open the configurator in a WebSerial browser (Chrome, Edge, Opera), plug in the drum, done. Everything is also adjustable from the OLED on the E-box."
+        },
+        {
+          "q": "My drum registers hits I didn't make. What do I do?",
+          "a": "Lower the sensitivity for that pad, from the OLED menu or the configurator's live monitor, where you can watch each pad's readings in real time."
+        },
+        {
+          "q": "Can I use the Onigiri-con with another drum?",
+          "a": "Yes. It's also compatible with TaikoForce and ZhongTaiko drums."
+        },
+        {
+          "q": "Is it really open source?",
+          "a": "Yes: firmware, hardware and this configurator are on GitHub. You can even build your own."
+        }
+      ]
+    },
+    "closing": {
+      "heading": "Get your ITAIKO",
+      "tagline": "Italian birch, Italian steel, open-source brain"
+    },
+    "tour": {
+      "made": "Made in Italy",
+      "items": [
+        {
+          "eyebrow": "Striking surface",
+          "stat": "3 mm",
+          "title": "Galvanized steel plates",
+          "body": "Thick 3 mm galvanized sheet steel under the head, cut in Italy, for a firm hit with plenty of bounce."
+        },
+        {
+          "eyebrow": "Body",
+          "stat": "12 mm",
+          "title": "Italian birch",
+          "body": "A 12 mm birch body, sourced and cut in Italy and assembled by hand. Stiff, resonant and built to take a beating."
+        },
+        {
+          "eyebrow": "Stand",
+          "stat": "",
+          "title": "Lighter, steadier stand",
+          "body": "Less weight, a wider footprint, no wobble on hard hits. The cradles on the front hold your bachi, so your sticks are always within reach."
+        }
+      ]
     }
   },
   "configure": {
