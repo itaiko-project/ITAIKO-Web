@@ -3,7 +3,6 @@
     "nav": {
       "home": "Home",
       "buy": "Shop",
-      "configurator": "Configurator",
       "next": "Next section"
     },
     "hero": {
@@ -11,7 +10,7 @@
       "subtitle": "Set it up from your browser, nothing to install",
       "tagline1a": "An arcade-style ",
       "tagline1b": "taiko drum",
-      "tagline2": "built in Italy, open source down to the firmware"
+      "tagline2": "designed and assembled in Italy, open source down to the firmware"
     },
     "cta": {
       "configure": "Configure your drum",
@@ -40,7 +39,7 @@
       "rows": [
         {
           "label": "Body",
-          "value": "8 mm Italian birch"
+          "value": "12 mm birch plywood"
         },
         {
           "label": "Plates",
@@ -64,7 +63,7 @@
         },
         {
           "label": "Platforms",
-          "value": "PC · PS3 · PS4 · Nintendo Switch · original arcade cabinet · USB MIDI"
+          "value": "PC · PS3 · PS4 · Nintendo Switch 1 and 2 · original arcade cabinet · USB MIDI"
         },
         {
           "label": "Configuration",
@@ -72,7 +71,7 @@
         },
         {
           "label": "Origin",
-          "value": "Designed and built in Italy"
+          "value": "Designed and assembled in Italy"
         }
       ]
     },
@@ -81,7 +80,7 @@
       "items": [
         {
           "q": "Which platforms does it work with?",
-          "a": "PC, PS3, PS4, Nintendo Switch and the original arcade cabinet. In MIDI mode it also plays as a USB MIDI drum in any music software. Pick the mode from the OLED menu or the web configurator."
+          "a": "PC, PS3, PS4, Nintendo Switch 1 and 2 and the original arcade cabinet. In MIDI mode it also plays as a USB MIDI drum in any music software. Pick the mode from the OLED menu or the web configurator."
         },
         {
           "q": "Do I need to install software?",
@@ -102,22 +101,28 @@
       ]
     },
     "closing": {
-      "heading": "Get your ITAIKO",
-      "tagline": "Italian birch, Italian steel, open-source brain"
+      "heading": "Get your",
+      "tagline": "12 mm birch plywood, Italian galvanized steel, open-source brain"
     },
     "tour": {
-      "made": "Made in Italy",
+      "made": "Designed and assembled in Italy",
       "items": [
         {
           "eyebrow": "Striking surface",
+          "stat": "",
+          "title": "Real arcade rubber",
+          "body": "The head is real arcade rubber, the same kind used on arcade cabinets, so it feels like the drum you already know."
+        },
+        {
+          "eyebrow": "Under the rubber",
           "stat": "3 mm",
           "title": "Galvanized steel plates",
-          "body": "Thick 3 mm galvanized sheet steel under the head, cut in Italy, for a firm hit with plenty of bounce."
+          "body": "Four plates, a center and a rim on each side, cut in Italy from 3 mm galvanized sheet steel. Firm under the stick, with plenty of bounce."
         },
         {
           "eyebrow": "Body",
           "stat": "12 mm",
-          "title": "Italian birch",
+          "title": "Birch plywood",
           "body": "A 12 mm birch body, sourced and cut in Italy and assembled by hand. Stiff, resonant and built to take a beating."
         },
         {

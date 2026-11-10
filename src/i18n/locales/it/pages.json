@@ -3,7 +3,6 @@
     "nav": {
       "home": "Home",
       "buy": "Negozio",
-      "configurator": "Configuratore",
       "next": "Sezione successiva"
     },
     "hero": {
@@ -11,7 +10,7 @@
       "subtitle": "Si configura dal browser, senza installare nulla",
       "tagline1a": "Un tamburo taiko ",
       "tagline1b": "in stile arcade",
-      "tagline2": "costruito in Italia, open source fino al firmware"
+      "tagline2": "progettato e assemblato in Italia, open source fino al firmware"
     },
     "cta": {
       "configure": "Configura il tuo tamburo",
@@ -40,7 +39,7 @@
       "rows": [
         {
           "label": "Corpo",
-          "value": "Betulla italiana da 12 mm"
+          "value": "Multistrato di betulla da 12 mm"
         },
         {
           "label": "Piastre",
@@ -64,7 +63,7 @@
         },
         {
           "label": "Piattaforme",
-          "value": "PC · PS3 · PS4 · Nintendo Switch · cabinato arcade originale · USB MIDI"
+          "value": "PC · PS3 · PS4 · Nintendo Switch 1 e 2 · cabinato arcade originale · USB MIDI"
         },
         {
           "label": "Configurazione",
@@ -72,7 +71,7 @@
         },
         {
           "label": "Origine",
-          "value": "Progettato e costruito in Italia"
+          "value": "Progettato e assemblato in Italia"
         }
       ]
     },
@@ -81,7 +80,7 @@
       "items": [
         {
           "q": "Con quali piattaforme funziona?",
-          "a": "PC, PS3, PS4, Nintendo Switch e il cabinato arcade originale. In modalità MIDI suona anche come batteria USB MIDI in qualsiasi software musicale. Scegli la modalità dal menu OLED o dal configuratore web."
+          "a": "PC, PS3, PS4, Nintendo Switch 1 e 2 e il cabinato arcade originale. In modalità MIDI suona anche come batteria USB MIDI in qualsiasi software musicale. Scegli la modalità dal menu OLED o dal configuratore web."
         },
         {
           "q": "Devo installare un software?",
@@ -102,23 +101,29 @@
       ]
     },
     "closing": {
-      "heading": "Prendi il tuo ITAIKO",
-      "tagline": "Betulla italiana, acciaio italiano, cervello open source"
+      "heading": "Prendi il tuo",
+      "tagline": "Multistrato di betulla da 12 mm, acciaio zincato italiano, cervello open source"
     },
     "tour": {
-      "made": "Made in Italy",
+      "made": "Progettato e assemblato in Italia",
       "items": [
         {
           "eyebrow": "Superficie di battuta",
+          "stat": "",
+          "title": "Vera gomma arcade",
+          "body": "La pelle è in vera gomma arcade, la stessa dei cabinati, così senti il tamburo che già conosci."
+        },
+        {
+          "eyebrow": "Sotto la gomma",
           "stat": "3 mm",
           "title": "Piastre in acciaio zincato",
-          "body": "Lamiera zincata spessa 3 mm sotto la pelle, tagliata in Italia, per un colpo deciso e con tanto rimbalzo."
+          "body": "Quattro piastre, centro e bordo per lato, tagliate in Italia da lamiera zincata da 3 mm. Solide sotto la bacchetta, con tanto rimbalzo."
         },
         {
           "eyebrow": "Corpo",
           "stat": "12 mm",
-          "title": "Betulla italiana",
-          "body": "Corpo in betulla da 12 mm, acquistata e tagliata in Italia, assemblato a mano. Rigido, risonante e fatto per resistere."
+          "title": "Multistrato di betulla",
+          "body": "Corpo in multistrato di betulla da 12 mm, acquistato e tagliato in Italia, assemblato a mano. Rigido, risonante e fatto per resistere."
         },
         {
           "eyebrow": "Supporto",

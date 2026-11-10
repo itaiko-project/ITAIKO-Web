@@ -3,8 +3,7 @@
     "nav": {
       "home": "首頁",
       "buy": "商店",
-      "github": "Github",
-      "configurator": "設定器"
+      "github": "Github"
     },
     "hero": {
       "welcome": "歡迎使用",
