@@ -4,15 +4,31 @@ import type { TriggerState } from "@/hooks/useDeviceStreaming";
 import { browserKeyToHid } from "@/lib/hid-keycodes";
 
 const INITIAL_TRIGGERS: TriggerState = { kaLeft: false, donLeft: false, donRight: false, kaRight: false };
+// A quick tap can go down and up between two repaints and never light anything. Hold every press at least this long.
+const MIN_PRESS_MS = 80;
 
 export function useKeyboardInput(config: DeviceConfig) {
   const [activeKeys, setActiveKeys] = useState<Set<number>>(new Set());
 
   useEffect(() => {
+    const pressedAt = new Map<number, number>();
+    const pendingRelease = new Map<number, number>();
+    const release = (hid: number) => {
+      pendingRelease.delete(hid);
+      setActiveKeys(prev => {
+        const next = new Set(prev);
+        next.delete(hid);
+        return next;
+      });
+    };
+
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.repeat) return;
       const hid = browserKeyToHid(event);
       if (hid !== null) {
+        window.clearTimeout(pendingRelease.get(hid)); // pressed again before a short tap's release fired
+        pendingRelease.delete(hid);
+        pressedAt.set(hid, performance.now());
         setActiveKeys(prev => {
           const next = new Set(prev);
           next.add(hid);
@@ -23,13 +39,10 @@ export function useKeyboardInput(config: DeviceConfig) {
 
     const handleKeyUp = (event: KeyboardEvent) => {
       const hid = browserKeyToHid(event);
-      if (hid !== null) {
-        setActiveKeys(prev => {
-          const next = new Set(prev);
-          next.delete(hid);
-          return next;
-        });
-      }
+      if (hid === null) return;
+      const remaining = MIN_PRESS_MS - (performance.now() - (pressedAt.get(hid) ?? 0));
+      if (remaining > 0) pendingRelease.set(hid, window.setTimeout(() => release(hid), remaining));
+      else release(hid);
     };
 
     // We listen on window to catch all inputs
@@ -39,6 +52,7 @@ export function useKeyboardInput(config: DeviceConfig) {
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
       window.removeEventListener("keyup", handleKeyUp);
+      pendingRelease.forEach((id) => window.clearTimeout(id));
     };
   }, []);
 

@@ -13,7 +13,7 @@ const MODEL_BYTES = 2_569_528; // progress fallback when the server sends no Con
 // Stage look — tune these, everything else derives from the model's size.
 const FILL = 1.25;          // >1 crops the bounding sphere a little so the drum is not lost in whitespace
 const ENV_INTENSITY = 0.3;  // soft ambient bounce; the three lights below do the shaping
-const KEY_INTENSITY = 2.2;  // warm, high and off to one side — the light you actually see
+const KEY_INTENSITY = 2.2;  // neutral white, high and off to one side — the light you actually see
 const FILL_INTENSITY = 0.7; // cool and dim, opposite the key, just to lift the shadow side
 const BACK_INTENSITY = 2.6; // behind the drum, rakes the rope so it separates from the background
 const EXPOSURE = 0.95;
@@ -726,7 +726,7 @@ function disposeModel(root: THREE.Object3D) {
 /** Three-point studio rig and a blurred mirror floor. */
 function stage(radius: number, floorY: number): THREE.Object3D[] {
   // Key: warm, high, and 3/4 off to the right — an overhead light gave the drum head no gradient.
-  const key = new THREE.SpotLight(0xfff1e0, KEY_INTENSITY, 0, 0.85, 1);
+  const key = new THREE.SpotLight(0xffffff, KEY_INTENSITY, 0, 0.85, 1);
   key.position.set(radius * 1.6, radius * 2.2, radius * 1.8);
   key.decay = 0; // ponytail: distance-independent, so intensity stays put if the model is rescaled
   key.target.position.set(0, 0, 0);
