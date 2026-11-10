@@ -10,10 +10,12 @@ const DrumViewer = lazy(() => import("@/components/DrumViewer"));
 
 // Close-ups between the hero and the controller, one slide each. Coordinates are in the GLB's space
 // (head faces +z, leans back ~35°, floor at y = 0); see TourStop.
-const TOUR: Omit<TourStop, "slot" | "card">[] = [
-  { target: [0, 13.5, 0.5], size: 11, yaw: 28, elevation: 16, anchor: [0, 14, 1.2] },        // head / steel plates
-  { target: [0, 12.5, -1.5], size: 12, yaw: 205, elevation: 16, anchor: [-2.5, 14.5, -2] },  // birch back
-  { target: [1.5, 10, 1], size: 14.5, yaw: 58, elevation: 24, anchor: [6.3, 2.5, 5.5] },      // stand, bachi cradle
+const TOUR: Omit<TourStop, "slot">[] = [
+  { target: [0, 13.5, 0.5], size: 11, yaw: 28, elevation: 16 },        // head / arcade rubber
+  // Plates float PLATES_LIFT out along the head normal; aim between them and the head, from the other side.
+  { target: [0, 15.55, 2.04], size: 12.5, yaw: -32, elevation: 20, plates: true }, // steel plates
+  { target: [0, 12.5, -1.5], size: 12, yaw: 205, elevation: 16 },  // birch back
+  { target: [1.5, 10, 1], size: 14.5, yaw: 58, elevation: 24 },      // stand, bachi cradle
 ];
 
 // ponytail: the reveal observer grabs .reveal nodes once on mount, so an HMR swap leaves the new
@@ -74,17 +76,28 @@ export function LandingPage() {
   const controllerSlotRef = useRef<HTMLDivElement>(null);
   const headingRef = useScaleToFit([logo.h, logo.heroW, logo.heroH]);
   const productHeadingRef = useScaleToFit([logo.h, logo.heroH]);
+  const closingHeadingRef = useScaleToFit([logo.h, logo.heroW, logo.heroH]);
   const scrollRef = useRef<HTMLDivElement>(null);
   const [isLastSection, setIsLastSection] = useState(false);
+  const [drumProgress, setDrumProgress] = useState(0);
   const [activeSection, setActiveSection] = useState(0);
-  const SECTION_COUNT = 6; // hero, 3 tour, onigiri, specs+faq (+footer)
+  const SECTION_COUNT = TOUR.length + 3; // hero, tour, onigiri, specs+faq (+footer)
   type Item = Record<string, string>;
-  const [tour] = useState(() => TOUR.map((s) => ({ ...s, slot: createRef<HTMLDivElement>(), card: createRef<HTMLDivElement>() })));
+  const [tour] = useState(() => TOUR.map((s) => ({ ...s, slot: createRef<HTMLDivElement>() })));
   const tourText = t("landing.tour.items", { returnObjects: true }) as Item[];
   const specRows = t("landing.specSheet.rows", { returnObjects: true }) as Item[];
   const faq = t("landing.faq.items", { returnObjects: true }) as Item[];
 
   const onigiriRatio = logo.heroH / logo.h;
+  // Browser setup + demo link, shown with the controller it configures.
+  const setupLine = (
+    <>
+      {t("landing.hero.subtitle")}.{" "}
+      <Link to="/configure?demo=true" className="text-foreground underline decoration-foreground/30 underline-offset-4 hover:decoration-foreground transition-colors">
+        {t("landing.cta.demo")}
+      </Link>
+    </>
+  );
 
   useEffect(() => {
     const el = scrollRef.current;
@@ -153,6 +166,7 @@ export function LandingPage() {
           scrollRef={scrollRef}
           tour={tour}
           hint={t("landing.onigiri1.tryMe")}
+          onProgress={setDrumProgress}
         />
       </Suspense>
 
@@ -168,18 +182,19 @@ export function LandingPage() {
             />
           </Link>
           <div className="flex items-center gap-3 md:gap-8">
-            <a href="#" className="flex items-center gap-2 text-sm md:text-base text-foreground/70 hover:text-foreground transition-colors whitespace-nowrap">
-              <ShoppingCart size={16} strokeWidth={1.5} aria-hidden />
-              {t("landing.nav.buy")}
-            </a>
             <LanguageSwitcher />
-            {/* Off-white primary: the one loud thing in the header, distinct from the blue Buy */}
-            <Button asChild size="sm" className="md:h-9 md:px-4">
-              <Link to="/configure">
+            {/* Configure stays a clear button, but outlined: Shop is the one filled, blue action up here. */}
+            <Button asChild size="sm" variant="outline" className="md:h-9 md:px-4">
+              <Link to="/configure" aria-label={t("landing.cta.configure")}>
                 <Wrench size={16} strokeWidth={1.5} aria-hidden />
                 <span className="hidden md:inline">{t("landing.cta.configure")}</span>
-                <span className="md:hidden">{t("landing.nav.configurator")}</span>
               </Link>
+            </Button>
+            <Button asChild size="sm" className="md:h-9 md:px-4 bg-brand-fill hover:bg-brand-fill-hover text-white border-0">
+              <a href="#">
+                <ShoppingCart size={16} strokeWidth={1.5} aria-hidden />
+                {t("landing.nav.buy")}
+              </a>
             </Button>
           </div>
         </nav>
@@ -216,7 +231,14 @@ export function LandingPage() {
           </div>
 
           {/* DRUM slot — empty; the canvas behind frames itself on this box */}
-          <div ref={drumSlotRef} aria-hidden className="pointer-events-auto flex-shrink-0 h-[54vh] w-full md:h-[80vh] md:w-[33vw]" style={{ touchAction: 'pan-y', cursor: 'grab' }} />
+          <div ref={drumSlotRef} aria-hidden className="relative pointer-events-auto flex-shrink-0 h-[54vh] w-full md:h-[80vh] md:w-[33vw]" style={{ touchAction: 'pan-y', cursor: 'grab' }}>
+            {/* Loading bar in the drum's place until the model is on screen; the drum then fades in over it. */}
+            <div className={`absolute inset-0 flex items-center justify-center transition-opacity duration-300 ${drumProgress >= 1 ? "opacity-0" : ""}`}>
+              <div className="h-1 w-32 overflow-hidden rounded-full bg-foreground/10">
+                <div className="h-full w-full origin-left rounded-full bg-foreground/70 transition-transform duration-200" style={{ transform: `scaleX(${drumProgress})` }} />
+              </div>
+            </div>
+          </div>
 
           {/* NARROW: tagline + button */}
           <div className="reveal reveal-stagger md:hidden flex flex-col items-center px-10 pt-0 pb-3 gap-3 flex-shrink-0 pointer-events-auto">
@@ -225,7 +247,7 @@ export function LandingPage() {
               {t("landing.hero.tagline2")}
             </p>
             <Button asChild size="lg" className="bg-brand-fill hover:bg-brand-fill-hover text-white border-0">
-              <a href="#">{t("landing.cta.buy")}</a>
+              <a href="#"><ShoppingCart size={16} strokeWidth={1.5} aria-hidden />{t("landing.cta.buy")}</a>
             </Button>
           </div>
 
@@ -253,15 +275,9 @@ export function LandingPage() {
               {t("landing.hero.tagline1a")}<span className="text-foreground">{t("landing.hero.tagline1b")}</span><br />
               {t("landing.hero.tagline2")}
             </p>
-            <p className="serif-body text-xl text-muted-foreground leading-relaxed mt-3" style={{ maxWidth: 'min(580px, 55vw)' }}>
-              {t("landing.hero.subtitle")}.{" "}
-              <Link to="/configure?demo=true" className="text-foreground underline decoration-foreground/30 underline-offset-4 hover:decoration-foreground transition-colors">
-                {t("landing.cta.demo")}
-              </Link>
-            </p>
             <div className="mt-5 flex gap-3">
               <Button asChild size="lg" className="bg-brand-fill hover:bg-brand-fill-hover text-white border-0">
-                <a href="#">{t("landing.cta.buy")}</a>
+                <a href="#"><ShoppingCart size={16} strokeWidth={1.5} aria-hidden />{t("landing.cta.buy")}</a>
               </Button>
             </div>
           </div>
@@ -296,14 +312,14 @@ export function LandingPage() {
               style={{ scrollSnapAlign: 'start', flexShrink: 0, flexBasis: '100%' }}
             >
               <div ref={stop.slot} aria-hidden className="flex-shrink-0 h-[46vh] w-full md:h-[78vh] md:w-[44vw]" />
-              <div ref={stop.card} className="reveal reveal-stagger relative z-10 flex-shrink-0 px-8 pt-5 pb-8 bg-background/85 backdrop-blur-sm md:bg-transparent md:backdrop-blur-none md:p-0 md:max-w-[30vw]">
+              <div className="reveal reveal-stagger relative z-10 flex-shrink-0 px-8 pt-5 pb-8 bg-background/85 backdrop-blur-sm md:bg-transparent md:backdrop-blur-none md:p-0 md:max-w-[30vw]">
                 <p className="font-mono text-xs md:text-sm text-brand-ink tabular-nums">
                   {String(k + 1).padStart(2, '0')} / {String(tour.length).padStart(2, '0')} · {item.eyebrow}
                 </p>
                 {item.stat && <div className="display-font leading-none mt-3 tabular-nums" style={{ fontSize: 'clamp(48px, 7vw, 96px)' }}>{item.stat}</div>}
                 <h2 className="display-font leading-tight mt-2" style={{ fontSize: 'clamp(26px, 3vw, 40px)' }}>{item.title}</h2>
                 <p className="serif-body text-lg text-muted-foreground leading-relaxed mt-3">{item.body}</p>
-                {k === 0 && <p className="mt-4 font-mono text-xs md:text-sm text-muted-foreground">{t("landing.tour.made")}</p>}
+                {stop.plates && <p className="mt-4 font-mono text-xs md:text-sm text-muted-foreground">{t("landing.tour.made")}</p>}
               </div>
             </section>
           );
@@ -311,7 +327,7 @@ export function LandingPage() {
 
         {/* ── Section 5: Onigiri-con ── */}
         <div
-          data-section={4}
+          data-section={tour.length + 1}
           className="flex flex-col justify-center md:flex-row md:items-center md:justify-center md:gap-4 md:px-16 overflow-hidden"
           style={{ scrollSnapAlign: 'start', flexShrink: 0, flexBasis: '100%' }}
         >
@@ -332,9 +348,10 @@ export function LandingPage() {
               {t("landing.onigiri1.tagline1")}<br />
               {t("landing.onigiri1.tagline2")}
             </p>
+            <p className="serif-body text-base text-center text-muted-foreground leading-relaxed">{setupLine}</p>
             <div className="flex gap-3">
               <Button asChild size="lg" className="bg-brand-fill hover:bg-brand-fill-hover text-white border-0">
-                <a href="#">{t("landing.cta.buy")}</a>
+                <a href="#"><ShoppingCart size={16} strokeWidth={1.5} aria-hidden />{t("landing.cta.buy")}</a>
               </Button>
             </div>
           </div>
@@ -353,16 +370,19 @@ export function LandingPage() {
             <p className="serif-body text-xl text-muted-foreground leading-relaxed mt-2" style={{ maxWidth: 'min(580px, 55vw)' }}>
               {t("landing.onigiri1.tagline2")}
             </p>
+            <p className="serif-body text-xl text-muted-foreground leading-relaxed mt-2" style={{ maxWidth: 'min(580px, 55vw)' }}>
+              {setupLine}
+            </p>
             <div className="mt-5 flex gap-3">
               <Button asChild size="lg" className="bg-brand-fill hover:bg-brand-fill-hover text-white border-0">
-                <a href="#">{t("landing.cta.buy")}</a>
+                <a href="#"><ShoppingCart size={16} strokeWidth={1.5} aria-hidden />{t("landing.cta.buy")}</a>
               </Button>
             </div>
           </div>
         </div>
 
         {/* ── Section 6: Specs + FAQ side by side, closing CTA + footer ── */}
-        <section data-section={5} className="flex flex-col" style={{ scrollSnapAlign: 'start', flexShrink: 0, minHeight: '100%' }}>
+        <section data-section={tour.length + 2} className="flex flex-col" style={{ scrollSnapAlign: 'start', flexShrink: 0, minHeight: '100%' }}>
           <div className="flex-1 flex flex-col justify-center px-6 md:px-16 pt-20 pb-16">
             <div className="mx-auto max-w-6xl w-full">
               <div className="grid gap-16 md:grid-cols-2 md:gap-16">
@@ -394,14 +414,17 @@ export function LandingPage() {
                 </div>
               </div>
               <div className="reveal reveal-stagger mt-16 text-center">
-                <h2 className="display-font leading-none" style={{ fontSize: 'clamp(36px, 6vw, 60px)' }}>{t("landing.closing.heading")}</h2>
+                <div ref={closingHeadingRef} className="mx-auto w-max" style={{ fontSize: `${logo.h}px` }}>
+                  {/* Same build as the hero heading: text at logo.h, the logo one pixel-step bigger, 4px apart */}
+                  <h2 className="display-font flex items-center gap-1 leading-none whitespace-nowrap">
+                    {t("landing.closing.heading")}
+                    <img src="itaiko.png" className="pixelated drag-none shrink-0" alt="ITAIKO" style={{ width: `${logo.heroW}px`, height: `${logo.heroH}px` }} />
+                  </h2>
+                </div>
                 <p className="serif-body text-xl text-muted-foreground mt-3">{t("landing.closing.tagline")}</p>
                 <div className="mt-5 flex justify-center gap-3">
                   <Button asChild size="lg" className="bg-brand-fill hover:bg-brand-fill-hover text-white border-0">
-                    <a href="#">{t("landing.cta.buy")}</a>
-                  </Button>
-                  <Button asChild size="lg" variant="outline">
-                    <Link to="/configure?demo=true">{t("landing.cta.configure")}</Link>
+                    <a href="#"><ShoppingCart size={16} strokeWidth={1.5} aria-hidden />{t("landing.cta.buy")}</a>
                   </Button>
                 </div>
               </div>

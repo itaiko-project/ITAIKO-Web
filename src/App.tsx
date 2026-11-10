@@ -1,9 +1,12 @@
 import { ThemeProvider } from "@/components/theme-provider";
 // import { ModeToggle } from "@/components/mode-toggle";
-import { ConfigurePage } from "@/pages/ConfigurePage";
+import { lazy, Suspense } from "react";
 import { LandingPage } from "@/pages/LandingPage";
 import { Routes, Route } from "react-router-dom";
 import { Toaster } from "@/components/ui/sonner";
+
+// The configurator (and its deps) downloads only when someone opens it, not with the landing page.
+const ConfigurePage = lazy(() => import("@/pages/ConfigurePage").then((m) => ({ default: m.ConfigurePage })));
 
 function App() {
   return (
@@ -13,7 +16,7 @@ function App() {
       </div> */}
       <Routes>
         <Route path="/" element={<LandingPage />} />
-        <Route path="/configure" element={<ConfigurePage />} />
+        <Route path="/configure" element={<Suspense fallback={null}><ConfigurePage /></Suspense>} />
       </Routes>
       <Toaster position="top-center" />
     </ThemeProvider>
