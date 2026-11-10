@@ -227,29 +227,6 @@
   }
 }
 
-/* Drum tour callouts (positioned per frame by DrumViewer) */
-.drum-callout-dot,
-.drum-callout-line {
-  position: absolute;
-  top: 0;
-  left: 0;
-  pointer-events: none;
-  opacity: 0;
-}
-.drum-callout-dot {
-  width: 14px;
-  height: 14px;
-  margin: -7px 0 0 -7px;
-  border-radius: 9999px;
-  background: var(--brand);
-  box-shadow: 0 0 0 3px var(--background); /* neutral ring separates it from the wood/steel */
-}
-.drum-callout-line {
-  height: 1px;
-  transform-origin: 0 50%;
-  background: color-mix(in oklch, var(--foreground) 55%, transparent);
-}
-
 /* "Try me" arrow at the onigiri's + key (positioned per frame by DrumViewer) */
 .onigiri-hint,
 .onigiri-hint-line {

@@ -5,8 +5,10 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 import { Reflector } from "three/examples/jsm/objects/Reflector.js";
 import { Onigiri, OLED_H, OLED_W, type Button } from "./oled";
+import { buildPlates } from "./plates";
 
-const MODEL_URL = "iTaiko.opt2k.glb";
+const MODEL_URL = "iTaiko.webp.glb";
+const MODEL_BYTES = 2_569_528; // progress fallback when the server sends no Content-Length
 
 // Stage look — tune these, everything else derives from the model's size.
 const FILL = 1.25;          // >1 crops the bounding sphere a little so the drum is not lost in whitespace
@@ -22,6 +24,16 @@ const FLOOR_RADIUS = 1.6;   // mirror disc radius, in bounding-sphere radii
 const MIRROR_MAX = 2048;    // longest side of the reflection render target
 const DETAIL_FILL = 1.02;   // controller slide: >1 leaves breathing room around the onigiri, lower zooms closer
 
+// The rubber head, measured off the mesh (GLB space): centre of its front face, and its lean back from vertical.
+// The plates are sized to it at 0.05 units/mm, which puts their 211.5 mm rim just inside the 10.62 head radius.
+const HEAD_CENTER = new THREE.Vector3(0, 14.69, 0.81);
+const HEAD_TILT = THREE.MathUtils.degToRad(34.8);
+const HEAD_NORMAL = new THREE.Vector3(0, Math.sin(HEAD_TILT), Math.cos(HEAD_TILT));
+const PLATE_SCALE = 0.05;
+const PLATES_LIFT = 3;      // how far the exploded plates float out in front of the head, in model units
+const PLATES_REVEAL_S = 0.45; // the rise plays on its own clock once you're at the stop, however fast you scrolled
+const STEEL_TILE_MM = 250;  // one repeat of the galvanized texture; its spangles come out ~8 mm across
+
 const UP = new THREE.Vector3(0, 1, 0);
 const CONTROLLER_ELEVATION = Math.atan2(1, 0.06); // near-overhead, without a singular lookAt at 90°
 
@@ -31,12 +43,11 @@ const CONTROLLER_ELEVATION = Math.atan2(1, 0.06); // near-overhead, without a si
  */
 export type TourStop = {
   slot: React.RefObject<HTMLElement | null>; // empty box in that section the camera frames
-  card: React.RefObject<HTMLElement | null>; // text the leader line runs to
   target: [number, number, number];         // what the camera looks at
   size: number;                              // radius around target to fit in the slot
   yaw: number;                               // degrees around the drum, 0 = front, 90 = its right side
   elevation: number;                         // degrees above the horizon
-  anchor: [number, number, number];          // the part the dot sits on
+  plates?: boolean;                          // slide the steel plates out of the head at this stop
 };
 
 type Pose = { box: { left: number; top: number; width: number; height: number }; target: THREE.Vector3; yaw: number; elevation: number; dist: number };
@@ -48,8 +59,10 @@ type Pose = { box: { left: number; top: number; width: number; height: number };
  * Scrolling flies the camera through `tour` (one section each, right after the hero) and then onto the
  * controller in the section after those.
  */
-export default function DrumViewer({ className, style, focusRef, controllerRef, scrollRef, tour = [], hint }: {
+export default function DrumViewer({ className, style, focusRef, controllerRef, scrollRef, tour = [], hint, onProgress }: {
   className?: string;
+  /** 0..1 while the model downloads; 1 once it is on screen. */
+  onProgress?: (progress: number) => void;
   /** Label for the arrow pointing at + on the controller slide, until the first press. */
   hint?: string;
   style?: React.CSSProperties;
@@ -60,6 +73,8 @@ export default function DrumViewer({ className, style, focusRef, controllerRef, 
 }) {
   const hostRef = useRef<HTMLDivElement>(null);
   const hintLabelRef = useRef<HTMLSpanElement | null>(null);
+  const onProgressRef = useRef(onProgress);
+  useEffect(() => { onProgressRef.current = onProgress; }, [onProgress]);
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
@@ -75,15 +90,6 @@ export default function DrumViewer({ className, style, focusRef, controllerRef, 
     renderer.domElement.style.cssText = "width:100%;height:100%;display:block;touch-action:pan-y;cursor:grab";
     host.appendChild(renderer.domElement);
 
-    // One dot + leader line per tour stop, drawn over the canvas and faded in only at that stop.
-    const callouts = tour.map(() => {
-      const line = document.createElement("div");
-      const dot = document.createElement("div");
-      line.className = "drum-callout-line";
-      dot.className = "drum-callout-dot";
-      host.append(line, dot);
-      return { line, dot };
-    });
     // "Try me" arrow at the onigiri's + key; wireOnigiri places and hides it.
     const hintEls = { line: document.createElement("div"), label: document.createElement("span") };
     hintEls.line.className = "onigiri-hint-line";
@@ -124,7 +130,7 @@ export default function DrumViewer({ className, style, focusRef, controllerRef, 
     // Fit each stop's subject to its slot, then widen the frustum out to the whole canvas with
     // setViewOffset — same framing, but the stage can spill past the box.
     let radius = 1;
-    const v = new THREE.Vector3();
+    let dirty = true; // something changed that the per-frame state can't see (resize, a texture arriving)
     const fit = () => {
       const { clientWidth: w, clientHeight: h } = host;
       if (!w || !h) return;
@@ -222,25 +228,6 @@ export default function DrumViewer({ className, style, focusRef, controllerRef, 
         .multiplyScalar(dist).add(target);
       camera.lookAt(target);
 
-      // Callouts: project each anchor and run a line from it to the nearest edge of its card.
-      tour.forEach((stop, k) => {
-        const { dot, line } = callouts[k];
-        const show = model ? 1 - Math.min(Math.abs(progress - (k + 1)) * 3, 1) : 0;
-        dot.style.opacity = line.style.opacity = String(show);
-        if (!show || !model) return;
-        model.localToWorld(v.set(...stop.anchor)).project(camera);
-        const x = (v.x + 1) / 2 * w, y = (1 - v.y) / 2 * h;
-        dot.style.transform = `translate(${x}px, ${y}px)`;
-        const card = stop.card.current?.getBoundingClientRect();
-        if (!card) return;
-        const GAP = 16;
-        const tx = THREE.MathUtils.clamp(x + hostRect.left, card.left - GAP, card.right + GAP) - hostRect.left;
-        const ty = THREE.MathUtils.clamp(y + hostRect.top, card.top - GAP, card.bottom + GAP) - hostRect.top;
-        const len = Math.hypot(tx - x, ty - y);
-        line.style.width = `${len}px`;
-        line.style.transform = `translate(${x}px, ${y}px) rotate(${Math.atan2(ty - y, tx - x)}rad)`;
-      });
-
       // The shared canvas leaves with the controller's section, so it cannot sit behind the ones after it.
       const last = stopCount() - 1;
       host.style.opacity = String(1 - THREE.MathUtils.smoothstep(scrollTop / sectionHeight, last, last + 0.75));
@@ -294,6 +281,40 @@ export default function DrumViewer({ className, style, focusRef, controllerRef, 
         for (const mask of masks) mask.visible = opacity > 0 && opacity < 1;
       };
 
+      // Steel plates: hidden under the rubber, they slide out along the head's normal at their tour stop.
+      const platesStop = tour.findIndex((s) => s.plates) + 1; // section index; 0 = none
+      const steel = new THREE.MeshStandardMaterial({
+        // roughness scales the map (mean ~0.33) down to ~0.12: the real sheet reflects almost like a mirror. Extra
+        // env reflection keeps a polished metal from going dark on this dim stage.
+        metalness: 1, roughness: 0.35, envMapIntensity: 2.5,
+        // Always on: toggling transparent swaps shader programs, and the first swap compiled mid-animation.
+        transparent: true,
+      });
+      const plates = platesStop ? buildPlates(steel) : null;
+      if (plates) {
+        // ExtrudeGeometry's UVs are in mm, so the repeat sets the texture's physical size.
+        const loader = new THREE.TextureLoader();
+        const tex = (name: string, srgb = false) => loader.load(`textures/galvanized-${name}.webp`, (t) => {
+          t.wrapS = t.wrapT = THREE.RepeatWrapping;
+          t.repeat.setScalar(1 / STEEL_TILE_MM);
+          t.anisotropy = renderer.capabilities.getMaxAnisotropy();
+          if (srgb) t.colorSpace = THREE.SRGBColorSpace;
+          t.needsUpdate = true;
+          steel.needsUpdate = true;
+          renderer.initTexture(t); // upload now, not on the first frame the plates show
+          dirty = true;
+        });
+        steel.map = tex("color", true);
+        steel.roughnessMap = tex("roughness"); // the set's normal map is flat and its metalness map solid white
+      }
+      if (plates) {
+        plates.scale.setScalar(PLATE_SCALE);
+        plates.rotation.x = -HEAD_TILT;
+        plates.visible = false;
+        plates.position.copy(HEAD_CENTER).addScaledVector(HEAD_NORMAL, -0.4); // parked under the rubber
+        gltf.scene.add(plates);
+      }
+
       const floorY = box.min.y - sphere.center.y;
       const rig = stage(radius, floorY);
       mirror = rig.find((o): o is Reflector => o instanceof Reflector) ?? null;
@@ -305,13 +326,29 @@ export default function DrumViewer({ className, style, focusRef, controllerRef, 
       model = gltf.scene;
       width = height = 0; // size the newly created reflection target too
       fit();
+      // Shader warm-up: compile() builds programs without drawing a pixel, but skips hidden objects, so show every
+      // hidden one (plates, button rings, fade masks) and put the drum in its half-faded state for the call. That
+      // way nothing compiles mid-scroll when the plates come out or the camera reaches the controller.
+      const hidden: THREE.Object3D[] = [];
+      scene.traverse((o) => {
+        if (o.visible) return;
+        hidden.push(o);
+        o.visible = true;
+      });
+      fadeOthers(0.5);
+      renderer.compile(scene, camera);
+      fadeOthers(1);
+      for (const o of hidden) o.visible = false;
       setReady(true);
+      onProgressRef.current?.(1);
 
       // Horizontal drags (and the auto-spin) turn the drum, not the camera, so the fixed lights
       // sweep across it. OrbitControls still owns the vertical orbit; we siphon off its azimuth
       // each frame — that keeps its damping, so the spin coasts to a stop like a real orbit.
       const drum = gltf.scene;
       let heroRotation = 0;
+      let platesReveal = 0;
+      let lastProgress = -1, lastReveal = -1;
       let previousTime = performance.now();
       const tick = (time: number) => {
         frame = requestAnimationFrame(tick);
@@ -338,18 +375,37 @@ export default function DrumViewer({ className, style, focusRef, controllerRef, 
         }
         // The close-ups are framed on the drum facing front, so unwind the hero spin on the way to the first.
         drum.rotation.y = heroRotation * (1 - Math.min(progress, 1));
+        if (plates) {
+          const want = Math.abs(progress - platesStop) < 0.5 ? 1 : 0;
+          platesReveal = reducedMotion.matches ? want
+            : want > platesReveal ? Math.min(platesReveal + dt / PLATES_REVEAL_S, 1) : Math.max(platesReveal - dt / PLATES_REVEAL_S, 0);
+          const t = THREE.MathUtils.smootherstep(platesReveal, 0, 1);
+          // Starts just under the rubber, so it reads as coming out of the drum. It crosses the surface at t ≈ 0.1,
+          // still invisible, then fades in as it rises, so the clipping through the rubber never shows.
+          plates.position.copy(HEAD_CENTER).addScaledVector(HEAD_NORMAL, -0.4 + (PLATES_LIFT + 0.4) * t);
+          steel.opacity = THREE.MathUtils.smoothstep(t, 0.12, 0.6);
+          plates.visible = steel.opacity > 0;
+        }
         drum.updateMatrixWorld();
         // Gone by mid-flight so the camera never looks through a half-faded drum up close.
         const toController = hasController ? THREE.MathUtils.clamp(progress - (last - 1), 0, 1) : 0;
         fadeOthers(1 - THREE.MathUtils.smoothstep(toController, 0.1, 0.6));
         onigiri?.update(time, toController);
         fit();
-        renderer.render(scene, camera);
+        // Only draw when the picture can change: the hero spins, the controller animates, the camera or plates are
+        // moving. Parked on a tour stop, or faded out past the controller, the GPU idles.
+        const moving = controls.enabled || toController > 0 || progress !== lastProgress || platesReveal !== lastReveal;
+        if ((moving || dirty) && host.style.opacity !== "0") {
+          renderer.render(scene, camera);
+          dirty = false;
+        }
+        lastProgress = progress;
+        lastReveal = platesReveal;
       };
       frame = requestAnimationFrame(tick);
-    });
+    }, (e) => onProgressRef.current?.(Math.min((e.loaded / (e.total || MODEL_BYTES)) * 0.95, 0.95)));
 
-    const ro = new ResizeObserver(fit);
+    const ro = new ResizeObserver(() => { dirty = true; fit(); });
     ro.observe(host);
     if (focusRef?.current) ro.observe(focusRef.current);
     if (controllerRef?.current) ro.observe(controllerRef.current);
@@ -365,7 +421,6 @@ export default function DrumViewer({ className, style, focusRef, controllerRef, 
       pmrem.dispose();
       renderer.dispose();
       renderer.domElement.remove();
-      for (const c of callouts) { c.dot.remove(); c.line.remove(); }
       hintEls.line.remove();
       hintEls.label.remove();
     };
