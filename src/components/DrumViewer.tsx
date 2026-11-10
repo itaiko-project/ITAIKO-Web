@@ -23,18 +23,38 @@ const MIRROR_MAX = 2048;    // longest side of the reflection render target
 const DETAIL_FILL = 1.02;   // controller slide: >1 leaves breathing room around the onigiri, lower zooms closer
 
 const UP = new THREE.Vector3(0, 1, 0);
+const CONTROLLER_ELEVATION = Math.atan2(1, 0.06); // near-overhead, without a singular lookAt at 90°
+
+/**
+ * A close-up between the hero and the controller. Coordinates are in the GLB's own space (before centring),
+ * read off the model: the head faces +z, leans back ~35°, and stands on the floor at y = 0.
+ */
+export type TourStop = {
+  slot: React.RefObject<HTMLElement | null>; // empty box in that section the camera frames
+  card: React.RefObject<HTMLElement | null>; // text the leader line runs to
+  target: [number, number, number];         // what the camera looks at
+  size: number;                              // radius around target to fit in the slot
+  yaw: number;                               // degrees around the drum, 0 = front, 90 = its right side
+  elevation: number;                         // degrees above the horizon
+  anchor: [number, number, number];          // the part the dot sits on
+};
+
+type Pose = { box: { left: number; top: number; width: number; height: number }; target: THREE.Vector3; yaw: number; elevation: number; dist: number };
 
 /**
  * Interactive 3D drum on a reflective stage. Drag to spin.
  * The canvas is meant to be full-bleed so the reflection never gets clipped; `focusRef` points at
  * the (empty) element holding the drum's place in the layout, and the camera frames that box.
+ * Scrolling flies the camera through `tour` (one section each, right after the hero) and then onto the
+ * controller in the section after those.
  */
-export default function DrumViewer({ className, style, focusRef, controllerRef, scrollRef }: {
+export default function DrumViewer({ className, style, focusRef, controllerRef, scrollRef, tour = [] }: {
   className?: string;
   style?: React.CSSProperties;
   focusRef?: React.RefObject<HTMLElement | null>;
   controllerRef?: React.RefObject<HTMLElement | null>;
   scrollRef?: React.RefObject<HTMLElement | null>;
+  tour?: TourStop[];
 }) {
   const hostRef = useRef<HTMLDivElement>(null);
   const [ready, setReady] = useState(false);
@@ -51,6 +71,16 @@ export default function DrumViewer({ className, style, focusRef, controllerRef, 
     // ponytail: pan-y keeps vertical page scroll working on touch; drum spins on horizontal drags only.
     renderer.domElement.style.cssText = "width:100%;height:100%;display:block;touch-action:pan-y;cursor:grab";
     host.appendChild(renderer.domElement);
+
+    // One dot + leader line per tour stop, drawn over the canvas and faded in only at that stop.
+    const callouts = tour.map(() => {
+      const line = document.createElement("div");
+      const dot = document.createElement("div");
+      line.className = "drum-callout-line";
+      dot.className = "drum-callout-dot";
+      host.append(line, dot);
+      return { line, dot };
+    });
 
     const scene = new THREE.Scene();
     const pmrem = new THREE.PMREMGenerator(renderer);
@@ -71,20 +101,21 @@ export default function DrumViewer({ className, style, focusRef, controllerRef, 
     controls.addEventListener("start", () => { controls.autoRotate = false; });
 
     let mirror: Reflector | null = null;
+    let model: THREE.Object3D | null = null;
     let disposed = false;
-    let progress = 0;
+    let progress = 0; // which stop the camera is at: 0 hero, 1..tour.length close-ups, then the controller
     const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
     const controllerCenter = new THREE.Vector3();
     const controllerSize = new THREE.Vector3();
-    const controllerPosition = new THREE.Vector3();
-    const lookTarget = new THREE.Vector3();
     let hasController = false;
     let onigiri: ReturnType<typeof wireOnigiri> | null = null;
     let width = 0, height = 0;
+    const stopCount = () => 1 + tour.length + (hasController ? 1 : 0);
 
-    // Fit the model's bounding sphere to the focus box, then widen the frustum out to the whole
-    // canvas with setViewOffset — same framing, but the stage can spill past the box.
+    // Fit each stop's subject to its slot, then widen the frustum out to the whole canvas with
+    // setViewOffset — same framing, but the stage can spill past the box.
     let radius = 1;
+    const v = new THREE.Vector3();
     const fit = () => {
       const { clientWidth: w, clientHeight: h } = host;
       if (!w || !h) return;
@@ -101,57 +132,109 @@ export default function DrumViewer({ className, style, focusRef, controllerRef, 
       }
 
       const hostRect = host.getBoundingClientRect();
-      const focus = focusRef?.current?.getBoundingClientRect();
-      const detail = controllerRef?.current?.getBoundingClientRect();
       const scrollTop = scrollRef?.current?.scrollTop ?? 0;
       const sectionHeight = scrollRef?.current?.clientHeight ?? h;
-      const heroBox = focus?.width && focus.height ? focus : hostRect;
-      const detailBox = detail?.width && detail.height ? detail : heroBox;
-      // Slot positions are measured at their own section's resting scroll position.
-      // Interpolating those positions keeps the scene on screen throughout the flight.
+      // Stop k lives in section k; measure its slot as it sits when that section is snapped in.
+      const boxOf = (el: HTMLElement | null | undefined, k: number) => {
+        const r = el?.getBoundingClientRect();
+        const b = r?.width && r.height ? r : hostRect;
+        return { left: b.left, width: b.width, height: b.height, top: b.top + scrollTop - k * sectionHeight };
+      };
+      const fovs = (box: Pose["box"]) => {
+        const vFov = THREE.MathUtils.degToRad(camera.fov);
+        return { vFov, hFov: 2 * Math.atan(Math.tan(vFov / 2) * (box.width / box.height)) };
+      };
+      const offset = model?.position ?? new THREE.Vector3();
+
+      const pose = (k: number): Pose => {
+        if (k === 0) {
+          // FILL crops the bounding sphere against the focus box, which can push the drum off the
+          // canvas when the box hugs an edge — so also keep it clear of the canvas itself.
+          const box = boxOf(focusRef?.current, 0);
+          const { vFov, hFov } = fovs(box);
+          const pxPerUnit = box.height / 2 / Math.tan(vFov / 2);
+          const cx = box.left - hostRect.left + box.width / 2;
+          const cy = box.top - hostRect.top + box.height / 2;
+          const margin = Math.max(Math.min(cx, w - cx, cy, h - cy), 1);
+          const dist = Math.max(radius / Math.sin(Math.min(vFov, hFov) / 2) / FILL, (radius * pxPerUnit) / margin);
+          const dir = heroCamera.position.clone().sub(controls.target).normalize();
+          heroCamera.position.copy(controls.target).addScaledVector(dir, dist);
+          controls.minDistance = controls.maxDistance = dist;
+          return { box, target: controls.target.clone(), yaw: Math.atan2(dir.x, dir.z), elevation: Math.asin(dir.y), dist };
+        }
+        if (k <= tour.length) {
+          const stop = tour[k - 1];
+          const box = boxOf(stop.slot.current, k);
+          const { vFov, hFov } = fovs(box);
+          return {
+            box,
+            target: new THREE.Vector3(...stop.target).add(offset),
+            yaw: THREE.MathUtils.degToRad(stop.yaw),
+            elevation: THREE.MathUtils.degToRad(stop.elevation),
+            dist: stop.size / Math.sin(Math.min(vFov, hFov) / 2),
+          };
+        }
+        const box = boxOf(controllerRef?.current, k);
+        const { vFov, hFov } = fovs(box);
+        const above = Math.max(
+          controllerSize.x / (2 * Math.tan(hFov / 2)),
+          controllerSize.z / (2 * Math.tan(vFov / 2)),
+        ) * DETAIL_FILL + controllerSize.y / 2;
+        return { box, target: controllerCenter.clone(), yaw: 0, elevation: CONTROLLER_ELEVATION, dist: above / Math.sin(CONTROLLER_ELEVATION) };
+      };
+
+      const i = Math.min(Math.floor(progress), stopCount() - 2);
+      const f = progress - Math.max(i, 0);
+      const a = pose(Math.max(i, 0)), b = i >= 0 ? pose(i + 1) : a;
+      const lerp = THREE.MathUtils.lerp;
+      // Orbit around the subject rather than lerping positions, so a front-to-back move swings past the
+      // drum instead of through it; yaw takes the short way round.
+      const dYaw = THREE.MathUtils.euclideanModulo(b.yaw - a.yaw + Math.PI, Math.PI * 2) - Math.PI;
+      const yaw = a.yaw + dYaw * f;
+      const elevation = lerp(a.elevation, b.elevation, f);
+      const dist = Math.exp(lerp(Math.log(a.dist), Math.log(b.dist), f));
+      const target = a.target.clone().lerp(b.target, f);
       const box = {
-        width: THREE.MathUtils.lerp(heroBox.width, detailBox.width, progress),
-        height: THREE.MathUtils.lerp(heroBox.height, detailBox.height, progress),
-        left: THREE.MathUtils.lerp(heroBox.left, detailBox.left, progress),
-        top: THREE.MathUtils.lerp(heroBox.top + scrollTop, detailBox.top + scrollTop - sectionHeight, progress),
+        width: lerp(a.box.width, b.box.width, f),
+        height: lerp(a.box.height, b.box.height, f),
+        left: lerp(a.box.left, b.box.left, f),
+        // Slot positions at rest, interpolated: keeps the subject on screen throughout the flight.
+        top: lerp(a.box.top, b.box.top, f),
       };
 
       camera.aspect = box.width / box.height;
       camera.setViewOffset(box.width, box.height, hostRect.left - box.left, hostRect.top - box.top, w, h);
-
-      const vFov = THREE.MathUtils.degToRad(camera.fov);
-      const hFov = 2 * Math.atan(Math.tan(vFov / 2) * camera.aspect);
-
-      // FILL crops the bounding sphere against the focus box, which can push the drum off the
-      // canvas when the box hugs an edge — so also keep it clear of the canvas itself.
-      const pxPerUnit = box.height / 2 / Math.tan(vFov / 2);
-      const cx = box.left - hostRect.left + box.width / 2;
-      const cy = box.top - hostRect.top + box.height / 2;
-      const margin = Math.max(Math.min(cx, w - cx, cy, h - cy), 1);
-      const dist = Math.max(radius / Math.sin(Math.min(vFov, hFov) / 2) / FILL, (radius * pxPerUnit) / margin);
       // Clip planes have to follow the model's scale, or the far plane saws through the mirror
       // floor as the fit distance grows — a straight line across it, then no reflection at all.
       camera.near = radius * 0.001;
       camera.far = dist + FLOOR_RADIUS * radius * 2;
       camera.updateProjectionMatrix();
+      camera.position.set(Math.cos(elevation) * Math.sin(yaw), Math.sin(elevation), Math.cos(elevation) * Math.cos(yaw))
+        .multiplyScalar(dist).add(target);
+      camera.lookAt(target);
 
-      const dir = heroCamera.position.clone().sub(controls.target).normalize();
-      heroCamera.position.copy(controls.target).addScaledVector(dir, dist);
-      controls.minDistance = controls.maxDistance = dist;
+      // Callouts: project each anchor and run a line from it to the nearest edge of its card.
+      tour.forEach((stop, k) => {
+        const { dot, line } = callouts[k];
+        const show = model ? 1 - Math.min(Math.abs(progress - (k + 1)) * 3, 1) : 0;
+        dot.style.opacity = line.style.opacity = String(show);
+        if (!show || !model) return;
+        model.localToWorld(v.set(...stop.anchor)).project(camera);
+        const x = (v.x + 1) / 2 * w, y = (1 - v.y) / 2 * h;
+        dot.style.transform = `translate(${x}px, ${y}px)`;
+        const card = stop.card.current?.getBoundingClientRect();
+        if (!card) return;
+        const GAP = 16;
+        const tx = THREE.MathUtils.clamp(x + hostRect.left, card.left - GAP, card.right + GAP) - hostRect.left;
+        const ty = THREE.MathUtils.clamp(y + hostRect.top, card.top - GAP, card.bottom + GAP) - hostRect.top;
+        const len = Math.hypot(tx - x, ty - y);
+        line.style.width = `${len}px`;
+        line.style.transform = `translate(${x}px, ${y}px) rotate(${Math.atan2(ty - y, tx - x)}rad)`;
+      });
 
-      // A near-overhead view keeps the controls readable without a singular lookAt at 90°.
-      const detailDistance = Math.max(
-        controllerSize.x / (2 * Math.tan(hFov / 2)),
-        controllerSize.z / (2 * Math.tan(vFov / 2)),
-      ) * DETAIL_FILL + controllerSize.y / 2;
-      controllerPosition.copy(controllerCenter).add(new THREE.Vector3(0, detailDistance, detailDistance * 0.06));
-      camera.position.lerpVectors(heroCamera.position, controllerPosition, progress);
-      camera.position.y += Math.sin(progress * Math.PI) * radius * 0.65;
-      lookTarget.lerpVectors(controls.target, controllerCenter, progress);
-      camera.lookAt(lookTarget);
-
-      // The shared canvas leaves with section two, so it cannot sit behind section three.
-      host.style.opacity = String(1 - THREE.MathUtils.smoothstep(scrollTop / sectionHeight, 1, 1.75));
+      // The shared canvas leaves with the controller's section, so it cannot sit behind the ones after it.
+      const last = stopCount() - 1;
+      host.style.opacity = String(1 - THREE.MathUtils.smoothstep(scrollTop / sectionHeight, last, last + 0.75));
     };
 
     let frame = 0;
@@ -210,6 +293,7 @@ export default function DrumViewer({ className, style, focusRef, controllerRef, 
       // Aim slightly below the drum so it sits high in frame, leaving room for the reflection.
       controls.target.y = -radius * 0.18;
       heroCamera.position.set(0, radius * 0.3, radius);
+      model = gltf.scene;
       width = height = 0; // size the newly created reflection target too
       fit();
       setReady(true);
@@ -217,7 +301,7 @@ export default function DrumViewer({ className, style, focusRef, controllerRef, 
       // Horizontal drags (and the auto-spin) turn the drum, not the camera, so the fixed lights
       // sweep across it. OrbitControls still owns the vertical orbit; we siphon off its azimuth
       // each frame — that keeps its damping, so the spin coasts to a stop like a real orbit.
-      const model = gltf.scene;
+      const drum = gltf.scene;
       let heroRotation = 0;
       let previousTime = performance.now();
       const tick = (time: number) => {
@@ -225,8 +309,11 @@ export default function DrumViewer({ className, style, focusRef, controllerRef, 
         const dt = Math.min((time - previousTime) / 1000, 0.05);
         previousTime = time;
         const scroll = scrollRef?.current;
-        const requested = hasController && scroll ? THREE.MathUtils.clamp(scroll.scrollTop / scroll.clientHeight, 0, 1) : 0;
-        const goal = reducedMotion.matches ? (requested >= 0.5 ? 1 : 0) : THREE.MathUtils.smoothstep(requested, 0, 1);
+        const last = stopCount() - 1;
+        const requested = scroll ? THREE.MathUtils.clamp(scroll.scrollTop / scroll.clientHeight, 0, last) : 0;
+        // Ease in and out of every stop, not just the first and last.
+        const k = Math.min(Math.floor(requested), Math.max(last - 1, 0));
+        const goal = reducedMotion.matches ? Math.round(requested) : k + THREE.MathUtils.smoothstep(requested - k, 0, 1);
         progress = reducedMotion.matches ? goal : THREE.MathUtils.damp(progress, goal, 9, dt);
         if (Math.abs(progress - goal) < 0.0001) progress = goal;
         controls.enabled = requested === 0 && progress === 0;
@@ -240,10 +327,13 @@ export default function DrumViewer({ className, style, focusRef, controllerRef, 
           heroCamera.position.sub(controls.target).applyAxisAngle(UP, -azimuth).add(controls.target);
           heroCamera.lookAt(controls.target);
         }
-        model.rotation.y = heroRotation * (1 - progress);
+        // The close-ups are framed on the drum facing front, so unwind the hero spin on the way to the first.
+        drum.rotation.y = heroRotation * (1 - Math.min(progress, 1));
+        drum.updateMatrixWorld();
         // Gone by mid-flight so the camera never looks through a half-faded drum up close.
-        fadeOthers(1 - THREE.MathUtils.smoothstep(progress, 0.1, 0.6));
-        onigiri?.update(time, progress);
+        const toController = hasController ? THREE.MathUtils.clamp(progress - (last - 1), 0, 1) : 0;
+        fadeOthers(1 - THREE.MathUtils.smoothstep(toController, 0.1, 0.6));
+        onigiri?.update(time, toController);
         fit();
         renderer.render(scene, camera);
       };
@@ -266,8 +356,9 @@ export default function DrumViewer({ className, style, focusRef, controllerRef, 
       pmrem.dispose();
       renderer.dispose();
       renderer.domElement.remove();
+      for (const c of callouts) { c.dot.remove(); c.line.remove(); }
     };
-  }, [focusRef, controllerRef, scrollRef]);
+  }, [focusRef, controllerRef, scrollRef, tour]);
 
   return (
     <div
