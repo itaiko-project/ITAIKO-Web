@@ -101,9 +101,9 @@ export function ConfigurationTab() {
         >
           {/* Background Image */}
           <img
-            src="/visual_drum.png"
+            src="/visual_drum.webp"
             alt="Visual Drum Background"
-            className="absolute inset-0 w-full h-full object-contain translate-x-[2px]"
+            className="absolute inset-0 w-full h-full object-contain"
           />
           {/* Drum SVG Overlay */}
           <svg viewBox="0 0 200 200" className="absolute inset-0 w-full h-full">
