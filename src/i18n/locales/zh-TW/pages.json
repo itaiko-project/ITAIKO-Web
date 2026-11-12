@@ -10,6 +10,7 @@
       "subtitle": "直接透過瀏覽器設定，無需下載軟體！",
       "tagline1a": "全球最佳太鼓",
       "tagline1b": "街機風格控制器",
+      "tagline1c": "",
       "tagline2": "完全可自訂且開源"
     },
     "cta": {
@@ -22,17 +23,24 @@
       "name": "Onigiri-con",
       "tagline1": "零延遲輸入，精準讀取。將你的太鼓提升到新境界！！",
       "tagline2": "同樣相容你舊有的 TaikoForce 與 ZhongTaiko！",
-      "tryMe": "試試看！"
+      "tryMe": "試試看！",
+      "port": "JTAG-8 連接埠",
+      "screen": "隨時設定你的太鼓！"
     },
     "specs": {
-      "polling": "USB 輪詢率",
-      "pollingValue": "1000 Hz",
-      "modes": "控制器模式",
-      "modesValue": "8",
-      "display": "板載 OLED",
-      "displayValue": "128×64",
-      "openSource": "開源",
-      "openSourceValue": "100%"
+      "ticker": [
+        { "value": "Ø 43 cm", "label": "街機尺寸鼓面" },
+        { "value": "1000 Hz", "label": "USB 輪詢率" },
+        { "value": "3 mm", "label": "鍍鋅鋼板" },
+        { "value": "8", "label": "控制器模式" },
+        { "value": "12 mm", "label": "樺木合板" },
+        { "value": "40 mm", "label": "加寬 Ka 板" },
+        { "value": "128×64", "label": "板載 OLED" },
+        { "value": "0", "label": "需要安裝的軟體" },
+        { "value": "MIDI", "label": "USB 鼓模式" },
+        { "value": "100%", "label": "開源" },
+        { "value": "Italy", "label": "義大利設計與組裝" }
+      ]
     }
   },
   "configure": {

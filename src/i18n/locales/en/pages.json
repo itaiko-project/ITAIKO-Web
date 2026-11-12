@@ -8,8 +8,9 @@
     "hero": {
       "welcome": "Meet",
       "subtitle": "Set it up from your browser, nothing to install",
-      "tagline1a": "An arcade-style ",
+      "tagline1a": "The arcade size ",
       "tagline1b": "taiko drum",
+      "tagline1c": ", now better.",
       "tagline2": "designed and assembled in Italy, open source down to the firmware"
     },
     "cta": {
@@ -22,17 +23,24 @@
       "name": "Onigiri-con",
       "tagline1": "1000 Hz polling and per-pad sensitivity, tuned live in the browser",
       "tagline2": "Also fits TaikoForce and ZhongTaiko drums",
-      "tryMe": "Try me!"
+      "tryMe": "Try me!",
+      "port": "JTAG-8 port",
+      "screen": "Configure the drum on the fly!"
     },
     "specs": {
-      "polling": "USB polling",
-      "pollingValue": "1000 Hz",
-      "modes": "Controller modes",
-      "modesValue": "8",
-      "display": "On-board OLED",
-      "displayValue": "128×64",
-      "openSource": "Open source",
-      "openSourceValue": "100%"
+      "ticker": [
+        { "value": "Ø 43 cm", "label": "Arcade-size head" },
+        { "value": "1000 Hz", "label": "USB polling" },
+        { "value": "3 mm", "label": "Galvanized steel plates" },
+        { "value": "8", "label": "Controller modes" },
+        { "value": "12 mm", "label": "Birch plywood" },
+        { "value": "40 mm", "label": "Wider Ka plates" },
+        { "value": "128×64", "label": "On-board OLED" },
+        { "value": "0", "label": "Software to install" },
+        { "value": "MIDI", "label": "USB drum mode" },
+        { "value": "100%", "label": "Open source" },
+        { "value": "Italy", "label": "Designed and assembled" }
+      ]
     },
     "specSheet": {
       "heading": "Specifications",
@@ -102,10 +110,17 @@
     },
     "closing": {
       "heading": "Get your",
-      "tagline": "12 mm birch plywood, Italian galvanized steel, open-source brain"
+      "tagline": "Ready for the ultimate taiko experience?"
     },
     "tour": {
-      "made": "Designed and assembled in Italy",
+      "measure": "Ø 43 cm / 17 in",
+      "compare": {
+        "ours": "ITAIKO",
+        "original": "Original arcade drum",
+        "steel": { "ours": "3 mm", "original": "≈ 2 mm" },
+        "birch": { "ours": "12 mm", "original": "≈ 10 mm" },
+        "ka": { "ours": "Ka 40 mm", "original": "Ka ≈ 30 mm" }
+      },
       "items": [
         {
           "eyebrow": "Striking surface",
@@ -117,19 +132,20 @@
           "eyebrow": "Under the rubber",
           "stat": "3 mm",
           "title": "Galvanized steel plates",
-          "body": "Four plates, a center and a rim on each side, cut in Italy from 3 mm galvanized sheet steel. Firm under the stick, with plenty of bounce."
+          "body": "Enlarged rim plates for double the rolls, thicker plates for double the bounce."
         },
         {
           "eyebrow": "Body",
           "stat": "12 mm",
           "title": "Birch plywood",
-          "body": "A 12 mm birch body, sourced and cut in Italy and assembled by hand. Stiff, resonant and built to take a beating."
+          "body": "A 12 mm birch body, sourced and cut in Italy and assembled by hand. Stiff and built to take a beating, it delivers a dry, precise sound."
         },
         {
           "eyebrow": "Stand",
           "stat": "",
           "title": "Lighter, steadier stand",
-          "body": "Less weight, a wider footprint, no wobble on hard hits. The cradles on the front hold your bachi, so your sticks are always within reach."
+          "body": "Less weight, a wider footprint, no wobble on hard hits.",
+          "extra": "Not only a stand, but also a bachi holder. Easily mountable and removable with hand screws."
         }
       ]
     }
