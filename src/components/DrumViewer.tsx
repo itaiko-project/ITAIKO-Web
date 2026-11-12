@@ -4,8 +4,11 @@ import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 import { Reflector } from "three/examples/jsm/objects/Reflector.js";
-import { Onigiri, OLED_H, OLED_W, type Button } from "./oled";
+import { Onigiri, type Button } from "./oled";
+import { oledScreen } from "./onigiriScreen";
 import { buildPlates } from "./plates";
+import { birchMaterial, galvanizedSteel, loadPlywood, PLY, whenIdle } from "./materials";
+import { dimension, type Dimension, type Point } from "./dimension";
 
 const MODEL_URL = "iTaiko.webp.glb";
 const MODEL_BYTES = 2_569_528; // progress fallback when the server sends no Content-Length
@@ -32,7 +35,27 @@ const HEAD_NORMAL = new THREE.Vector3(0, Math.sin(HEAD_TILT), Math.cos(HEAD_TILT
 const PLATE_SCALE = 0.05;
 const PLATES_LIFT = 3;      // how far the exploded plates float out in front of the head, in model units
 const PLATES_REVEAL_S = 0.45; // the rise plays on its own clock once you're at the stop, however fast you scrolled
-const STEEL_TILE_MM = 250;  // one repeat of the galvanized texture; its spangles come out ~8 mm across
+const PLATES_EXIT_S = 0.2;    // and clears quickly on leaving, before the plywood comes in
+const WOOD_LIFT = 0.3;      // the plywood sits just proud of the rubber, so it crossfades over the drum, not inside it
+// The plywood is shown head-on and flat: squashed to a sliver so no edge or hole wall reads as depth.
+const WOOD_FLAT = 0.02;
+// Where the Ka-width dimension sits on the plywood (plate frame, degrees from +x): along a radius clear of the screw
+// holes, on the right.
+const WOOD_KA_DEG = 18;
+const WOOD_DIM_IN_S = 0.35, WOOD_DIM_OUT_S = 0.12; // its fade, once the camera has stopped on the plywood / on leaving
+const DRUM_EXIT_TURN = Math.PI * 0.75; // stand → onigiri: the drum turns this far clockwise as it fades...
+const DRUM_EXIT_END = 0.45;            // ...and is gone by this share of the flight, well before the onigiri lands
+const FLOOR_GLOW = 0.22;       // the light pool's strength at the stand stop, so the black stand stands off the floor
+const FLOOR_GLOW_RADIUS = 0.75; // its size, in bounding-sphere radii
+const HEAD_RADIUS = 10.62;  // rubber head, model units (0.05/mm): the 43 cm diameter the measure arrow spans
+const MEASURE_LIFT = 0.25;  // the arrow floats this far off the rubber, along its normal
+const MEASURE_REVEAL_S = 0.6; // the arrow draws out from the centre on its own clock, like the plates
+const MEASURE_EXIT_S = 0.15;  // and snaps away on leaving, so it is gone before the camera is far into the next flight
+// The stand is baked into iTaiko_Low, so its pieces are picked out of the mesh by shape: the two side boards and
+// their hand screws are the only loose parts centred this far off the middle (|x|, model units) and this narrow.
+const STAND_X = [4.6, 6.2] as const;
+const STAND_MAX_WIDTH = 2;
+const STAND_BLINK_S = 1;    // two flashes over this long, once each time the stand stop is reached
 
 const UP = new THREE.Vector3(0, 1, 0);
 const CONTROLLER_ELEVATION = Math.atan2(1, 0.06); // near-overhead, without a singular lookAt at 90°
@@ -48,6 +71,9 @@ export type TourStop = {
   yaw: number;                               // degrees around the drum, 0 = front, 90 = its right side
   elevation: number;                         // degrees above the horizon
   plates?: boolean;                          // slide the steel plates out of the head at this stop
+  measure?: boolean;                         // draw the head's diameter across the rubber at this stop
+  stand?: boolean;                           // flash the stand when the camera lands here
+  wood?: boolean;                            // the drum gives way to the bare plywood Don and Ka plates here
 };
 
 type Pose = { box: { left: number; top: number; width: number; height: number }; target: THREE.Vector3; yaw: number; elevation: number; dist: number };
@@ -59,8 +85,12 @@ type Pose = { box: { left: number; top: number; width: number; height: number };
  * Scrolling flies the camera through `tour` (one section each, right after the hero) and then onto the
  * controller in the section after those.
  */
-export default function DrumViewer({ className, style, focusRef, controllerRef, scrollRef, tour = [], hint, onProgress }: {
+export default function DrumViewer({ className, style, focusRef, controllerRef, scrollRef, tour = [], hint, measureLabel, woodLabel, onProgress }: {
   className?: string;
+  /** Text on the diameter arrow at the `measure` stop. */
+  measureLabel?: string;
+  /** Label of the plywood's Ka-width arrow at the `wood` stop. */
+  woodLabel?: string;
   /** 0..1 while the model downloads; 1 once it is on screen. */
   onProgress?: (progress: number) => void;
   /** Label for the arrow pointing at + on the controller slide, until the first press. */
@@ -73,6 +103,9 @@ export default function DrumViewer({ className, style, focusRef, controllerRef, 
 }) {
   const hostRef = useRef<HTMLDivElement>(null);
   const hintLabelRef = useRef<HTMLSpanElement | null>(null);
+  const measureLabelRef = useRef(measureLabel);
+  const dimsRef = useRef<ReturnType<typeof dimensionOverlay> | null>(null);
+  const woodLabelRef = useRef(woodLabel);
   const onProgressRef = useRef(onProgress);
   useEffect(() => { onProgressRef.current = onProgress; }, [onProgress]);
   const [ready, setReady] = useState(false);
@@ -90,12 +123,17 @@ export default function DrumViewer({ className, style, focusRef, controllerRef, 
     renderer.domElement.style.cssText = "width:100%;height:100%;display:block;touch-action:pan-y;cursor:grab";
     host.appendChild(renderer.domElement);
 
-    // "Try me" arrow at the onigiri's + key; wireOnigiri places and hides it.
-    const hintEls = { line: document.createElement("div"), label: document.createElement("span") };
-    hintEls.line.className = "onigiri-hint-line";
+    // "Try me" label over the onigiri's + key; wireOnigiri places and hides it.
+    const hintEls = { label: document.createElement("span") };
     hintEls.label.className = "onigiri-hint";
-    host.append(hintEls.line, hintEls.label);
+    host.append(hintEls.label);
     hintLabelRef.current = hintEls.label;
+    // Diameter label on the head; positioned per frame over the arrow's midpoint.
+    // Dimension overlay: 0 = the head's Ø, 1 = the plywood's Ka width.
+    const dims = dimensionOverlay(host, 2);
+    dims.label(0, measureLabelRef.current ?? "");
+    dims.label(1, woodLabelRef.current ?? "");
+    dimsRef.current = dims;
 
     const scene = new THREE.Scene();
     const pmrem = new THREE.PMREMGenerator(renderer);
@@ -257,56 +295,16 @@ export default function DrumViewer({ className, style, focusRef, controllerRef, 
         hasController = true;
         if (controllerRef?.current) onigiri = wireOnigiri(controller, camera, renderer.domElement, controllerRef.current, hintEls);
       }
-      // Everything but the onigiri fades out on the controller slide.
-      // A transparent mesh blends its own back and inner faces in draw order, which flickers as
-      // the drum turns. A depth-only twin drawn in the opaque pass leaves just the front surface.
-      const fading: THREE.Material[] = [];
-      const depthOnly = new THREE.MeshBasicMaterial({ colorWrite: false });
-      const masks: THREE.Mesh[] = [];
-      for (const name of ['iTaiko_Low', 'Cavo_Low']) gltf.scene.getObjectByName(name)?.traverse((o) => {
-        if (!(o instanceof THREE.Mesh) || o.userData.mask) return;
-        fading.push(...[o.material].flat());
-        const mask = new THREE.Mesh(o.geometry, depthOnly);
-        mask.userData.mask = true;
-        mask.visible = false;
-        o.add(mask);
-        masks.push(mask);
-      });
-      const fadeOthers = (opacity: number) => {
-        for (const m of fading) {
-          m.opacity = opacity;
-          m.transparent = opacity < 1;
-          m.visible = opacity > 0;
-        }
-        for (const mask of masks) mask.visible = opacity > 0 && opacity < 1;
-      };
+      // The drum (and cable) fade out on the controller slide and for the bare plywood, and go see-through at the
+      // stand; the onigiri fades for the plywood too.
+      const drumFade = fader([gltf.scene.getObjectByName('iTaiko_Low'), gltf.scene.getObjectByName('Cavo_Low')]);
+      const controllerFade = controller ? fader([controller]) : null;
 
       // Steel plates: hidden under the rubber, they slide out along the head's normal at their tour stop.
       const platesStop = tour.findIndex((s) => s.plates) + 1; // section index; 0 = none
-      const steel = new THREE.MeshStandardMaterial({
-        // roughness scales the map (mean ~0.33) down to ~0.12: the real sheet reflects almost like a mirror. Extra
-        // env reflection keeps a polished metal from going dark on this dim stage.
-        metalness: 1, roughness: 0.35, envMapIntensity: 2.5,
-        // Always on: toggling transparent swaps shader programs, and the first swap compiled mid-animation.
-        transparent: true,
-      });
-      const plates = platesStop ? buildPlates(steel) : null;
-      if (plates) {
-        // ExtrudeGeometry's UVs are in mm, so the repeat sets the texture's physical size.
-        const loader = new THREE.TextureLoader();
-        const tex = (name: string, srgb = false) => loader.load(`textures/galvanized-${name}.webp`, (t) => {
-          t.wrapS = t.wrapT = THREE.RepeatWrapping;
-          t.repeat.setScalar(1 / STEEL_TILE_MM);
-          t.anisotropy = renderer.capabilities.getMaxAnisotropy();
-          if (srgb) t.colorSpace = THREE.SRGBColorSpace;
-          t.needsUpdate = true;
-          steel.needsUpdate = true;
-          renderer.initTexture(t); // upload now, not on the first frame the plates show
-          dirty = true;
-        });
-        steel.map = tex("color", true);
-        steel.roughnessMap = tex("roughness"); // the set's normal map is flat and its metalness map solid white
-      }
+      // Always transparent: toggling it swaps shader programs, and the first swap compiled mid-animation.
+      const steel = platesStop ? galvanizedSteel(renderer, { transparent: true }, () => { dirty = true; }).material : null;
+      const plates = steel ? buildPlates(steel) : null;
       if (plates) {
         plates.scale.setScalar(PLATE_SCALE);
         plates.rotation.x = -HEAD_TILT;
@@ -315,9 +313,50 @@ export default function DrumViewer({ className, style, focusRef, controllerRef, 
         gltf.scene.add(plates);
       }
 
+      // The head's diameter: drawn as a 2D dimension over the canvas (same style as every other measure, and no
+      // thin-geometry shimmer), between two rim points of this anchor in the head's plane (x across the drum).
+      const measureStop = tour.findIndex((s) => s.measure) + 1;
+      const measureAnchor = new THREE.Object3D();
+      measureAnchor.rotation.x = -HEAD_TILT;
+      measureAnchor.position.copy(HEAD_CENTER).addScaledVector(HEAD_NORMAL, MEASURE_LIFT);
+      gltf.scene.add(measureAnchor);
+
+      // Stand flash: the stand's triangles, redrawn additively in the accent colour over the drum.
+      const standStop = tour.findIndex((s) => s.stand) + 1;
+      const drumMesh = gltf.scene.getObjectByName("iTaiko_Low");
+      const standGeometry = standStop && drumMesh instanceof THREE.Mesh ? standOf(drumMesh.geometry) : null;
+      const standGlow = new THREE.MeshBasicMaterial({
+        color: ACCENT, transparent: true, opacity: 0, blending: THREE.AdditiveBlending,
+        depthWrite: false, toneMapped: false, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1,
+      });
+      const standFlash = standGeometry ? new THREE.Mesh(standGeometry, standGlow) : null;
+      if (standFlash) {
+        standFlash.userData.overlay = true;
+        standFlash.visible = false;
+        drumMesh!.add(standFlash);
+      }
+
+      // Bare plywood plates: loaded after the drum (37 KB), placed on the head like the steel plates.
+      const woodStop = tour.findIndex((s) => s.wood) + 1;
+      // Always transparent, like the steel, so no program swap mid-scroll.
+      const woodMaterial = woodStop ? birchMaterial(renderer.capabilities.getMaxAnisotropy(), { transparent: true, opacity: 0 }) : null;
+      let wood: THREE.Mesh | null = null;
+      if (woodMaterial) loadPlywood().then((geometry) => {
+        if (disposed) return;
+        wood = new THREE.Mesh(geometry, woodMaterial);
+        wood.scale.set(PLATE_SCALE, PLATE_SCALE, PLATE_SCALE * WOOD_FLAT);
+        wood.rotation.x = -HEAD_TILT;
+        wood.position.copy(HEAD_CENTER).addScaledVector(HEAD_NORMAL, WOOD_LIFT);
+        gltf.scene.add(wood);
+        renderer.compile(wood, camera, scene); // build the program (with the scene's lights) before it is ever shown
+        wood.visible = false;
+        dirty = true;
+      });
+
       const floorY = box.min.y - sphere.center.y;
       const rig = stage(radius, floorY);
       mirror = rig.find((o): o is Reflector => o instanceof Reflector) ?? null;
+      const floorGlow = rig.find((o) => o.name === "floorGlow") as THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial> | undefined;
       scene.add(...rig);
 
       // Aim slightly below the drum so it sits high in frame, leaving room for the reflection.
@@ -327,7 +366,7 @@ export default function DrumViewer({ className, style, focusRef, controllerRef, 
       width = height = 0; // size the newly created reflection target too
       fit();
       // Shader warm-up: compile() builds programs without drawing a pixel, but skips hidden objects, so show every
-      // hidden one (plates, button rings, fade masks) and put the drum in its half-faded state for the call. That
+      // hidden one (plates, button glows, fade masks) and put the drum in its half-faded state for the call. That
       // way nothing compiles mid-scroll when the plates come out or the camera reaches the controller.
       const hidden: THREE.Object3D[] = [];
       scene.traverse((o) => {
@@ -335,9 +374,11 @@ export default function DrumViewer({ className, style, focusRef, controllerRef, 
         hidden.push(o);
         o.visible = true;
       });
-      fadeOthers(0.5);
+      drumFade(0.5);
+      controllerFade?.(0.5);
       renderer.compile(scene, camera);
-      fadeOthers(1);
+      drumFade(1);
+      controllerFade?.(1);
       for (const o of hidden) o.visible = false;
       setReady(true);
       onProgressRef.current?.(1);
@@ -348,15 +389,54 @@ export default function DrumViewer({ className, style, focusRef, controllerRef, 
       const drum = gltf.scene;
       let heroRotation = 0;
       let platesReveal = 0;
-      let lastProgress = -1, lastReveal = -1;
+      let measureReveal = 0;
+      let standBlink = -1, standArmed = true; // seconds into the flash, -1 when idle; re-armed once you leave the stop
+      let lastProgress = -1, lastReveal = -1, lastMeasure = -1;
+      let woodDimReveal = 0, lastWoodDim = -1;
+      let woodDim: Dimension | null = null;
+      const labelPoint = new THREE.Vector3();
       let previousTime = performance.now();
+      // Dimensions over the canvas, from points of the model projected to the screen. Only ever updated in a frame
+      // that is also drawn: computed from a camera the canvas is not showing, they drifted against a still drum.
+      const placeDimensions = () => {
+        const w = renderer.domElement.clientWidth, h = renderer.domElement.clientHeight;
+        const screen = (o: THREE.Object3D, x: number, y: number, z: number): Point => {
+          o.localToWorld(labelPoint.set(x, y, z)).project(camera);
+          return [(labelPoint.x + 1) / 2 * w, (1 - labelPoint.y) / 2 * h];
+        };
+        // The head's Ø: draws out from the centre, label fading in once it is nearly full.
+        const reveal = THREE.MathUtils.smootherstep(measureReveal, 0, 1);
+        if (reveal > 0) {
+          const a = screen(measureAnchor, -HEAD_RADIUS, 0, 0), b = screen(measureAnchor, HEAD_RADIUS, 0, 0);
+          const mid: Point = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+          const out = (p: Point): Point => [mid[0] + (p[0] - mid[0]) * reveal, mid[1] + (p[1] - mid[1]) * reveal];
+          dims.set(0, dimension(out(a), out(b), [0, -1], { labelOnLine: true }),
+            THREE.MathUtils.smoothstep(reveal, 0, 0.25), THREE.MathUtils.smoothstep(reveal, 0.6, 1));
+        } else dims.hide(0);
+        // Ka width on the plywood: no motion of its own. Placed once the camera has stopped there, then only faded;
+        // on the way out it keeps that place while it fades, instead of following the camera.
+        if (wood && progress === woodStop) {
+          const at = (r: number) => {
+            const a = THREE.MathUtils.degToRad(WOOD_KA_DEG);
+            return screen(wood!, r * Math.cos(a), r * Math.sin(a), 0);
+          };
+          woodDim = dimension(at(PLY.kaIn), at(PLY.kaOut), [0, -1]);
+        }
+        const fade = THREE.MathUtils.smoothstep(woodDimReveal, 0, 1);
+        if (woodDim && fade > 0) dims.set(1, woodDim, fade, fade);
+        else dims.hide(1);
+      };
+
       const tick = (time: number) => {
         frame = requestAnimationFrame(tick);
         const dt = Math.min((time - previousTime) / 1000, 0.05);
         previousTime = time;
         const scroll = scrollRef?.current;
         const last = stopCount() - 1;
-        const requested = scroll ? THREE.MathUtils.clamp(scroll.scrollTop / scroll.clientHeight, 0, last) : 0;
+        const raw = scroll ? THREE.MathUtils.clamp(scroll.scrollTop / scroll.clientHeight, 0, last) : 0;
+        // Snapped onto a section, the scroll position can still wobble by a fraction of a pixel (Firefox); read that
+        // as parked, or the camera, and everything drawn from it, creeps back and forth.
+        const requested = Math.abs(raw - Math.round(raw)) < 0.004 ? Math.round(raw) : raw;
         // Ease in and out of every stop, not just the first and last.
         const k = Math.min(Math.floor(requested), Math.max(last - 1, 0));
         const goal = reducedMotion.matches ? Math.round(requested) : k + THREE.MathUtils.smoothstep(requested - k, 0, 1);
@@ -375,32 +455,78 @@ export default function DrumViewer({ className, style, focusRef, controllerRef, 
         }
         // The close-ups are framed on the drum facing front, so unwind the hero spin on the way to the first.
         drum.rotation.y = heroRotation * (1 - Math.min(progress, 1));
+        // How far the drum has given way to a stop's own scene (1 parked there, 0 by 0.6 of a section away).
+        const near = (stop: number) => stop ? 1 - THREE.MathUtils.smoothstep(Math.abs(progress - stop), 0.1, 0.6) : 0;
+        const woodAmount = near(woodStop), standAmount = near(standStop);
         if (plates) {
-          const want = Math.abs(progress - platesStop) < 0.5 ? 1 : 0;
-          platesReveal = reducedMotion.matches ? want
-            : want > platesReveal ? Math.min(platesReveal + dt / PLATES_REVEAL_S, 1) : Math.max(platesReveal - dt / PLATES_REVEAL_S, 0);
+          // Out as soon as you scroll on (fast), so the steel is gone before the plywood starts to show.
+          const want = Math.abs(progress - platesStop) < 0.2 ? 1 : 0;
+          platesReveal = reducedMotion.matches ? want : approach(platesReveal, want, dt / PLATES_REVEAL_S, dt / PLATES_EXIT_S);
           const t = THREE.MathUtils.smootherstep(platesReveal, 0, 1);
           // Starts just under the rubber, so it reads as coming out of the drum. It crosses the surface at t ≈ 0.1,
           // still invisible, then fades in as it rises, so the clipping through the rubber never shows.
           plates.position.copy(HEAD_CENTER).addScaledVector(HEAD_NORMAL, -0.4 + (PLATES_LIFT + 0.4) * t);
-          steel.opacity = THREE.MathUtils.smoothstep(t, 0.12, 0.6);
-          plates.visible = steel.opacity > 0;
+          // And never alongside the wood, however fast the scroll: any plywood showing means no steel.
+          steel!.opacity = THREE.MathUtils.smoothstep(t, 0.12, 0.6) * (1 - THREE.MathUtils.smoothstep(woodAmount, 0, 0.05));
+          plates.visible = steel!.opacity > 0;
+        }
+        if (measureStop) {
+          // Only while parked at the stop: it should not trail the camera into the next flight.
+          const want = Math.abs(progress - measureStop) < 0.15 ? 1 : 0;
+          measureReveal = reducedMotion.matches ? want : approach(measureReveal, want, dt / MEASURE_REVEAL_S, dt / MEASURE_EXIT_S);
+        }
+        if (woodStop) {
+          // In only once the camera has come to rest on the plywood; out quickly as soon as it moves on.
+          const want = progress === woodStop && woodAmount === 1 ? 1 : 0;
+          woodDimReveal = reducedMotion.matches ? want : approach(woodDimReveal, want, dt / WOOD_DIM_IN_S, dt / WOOD_DIM_OUT_S);
+        }
+        if (standFlash) {
+          const away = Math.abs(progress - standStop);
+          if (away > 0.5) standArmed = true;
+          if (away > 0.05) standBlink = -1; // scrolled on: stop flashing right away, don't finish the second blink
+          if (standArmed && away < 0.02 && !reducedMotion.matches) {
+            standArmed = false;
+            standBlink = 0;
+          }
+          if (standBlink >= 0) {
+            standBlink += dt;
+            if (standBlink > STAND_BLINK_S) standBlink = -1;
+          }
+          // sin² over two half-periods: two soft flashes that start and end dark.
+          standGlow.opacity = standBlink < 0 ? 0 : 0.85 * Math.sin((2 * Math.PI * standBlink) / STAND_BLINK_S) ** 2;
+          standFlash.visible = standGlow.opacity > 0;
         }
         drum.updateMatrixWorld();
         // Gone by mid-flight so the camera never looks through a half-faded drum up close.
         const toController = hasController ? THREE.MathUtils.clamp(progress - (last - 1), 0, 1) : 0;
-        fadeOthers(1 - THREE.MathUtils.smoothstep(toController, 0.1, 0.6));
+        // At the plywood stop the drum and onigiri dissolve into the bare plates, tied to the camera so it reverses
+        // with it. At the stand stop a pool of light comes up on the floor, so the black stand reads against it.
+        if (woodMaterial) woodMaterial.opacity = woodAmount;
+        if (wood) wood.visible = woodAmount > 0;
+        if (floorGlow) {
+          floorGlow.material.opacity = FLOOR_GLOW * standAmount;
+          floorGlow.visible = standAmount > 0;
+        }
+        // Leaving the stand for the onigiri: the drum spins away clockwise (seen from above) and is gone by mid-flight.
+        if (drumMesh) drumMesh.rotation.y = -DRUM_EXIT_TURN * THREE.MathUtils.smootherstep(toController, 0, DRUM_EXIT_END);
+        drumFade(Math.min(1 - THREE.MathUtils.smoothstep(toController, 0.05, DRUM_EXIT_END), 1 - woodAmount));
+        controllerFade?.(1 - woodAmount);
         onigiri?.update(time, toController);
         fit();
+
         // Only draw when the picture can change: the hero spins, the controller animates, the camera or plates are
         // moving. Parked on a tour stop, or faded out past the controller, the GPU idles.
-        const moving = controls.enabled || toController > 0 || progress !== lastProgress || platesReveal !== lastReveal;
+        const moving = controls.enabled || toController > 0 || progress !== lastProgress || platesReveal !== lastReveal
+          || measureReveal !== lastMeasure || woodDimReveal !== lastWoodDim || standBlink >= 0 || standGlow.opacity > 0;
         if ((moving || dirty) && host.style.opacity !== "0") {
+          placeDimensions();
           renderer.render(scene, camera);
           dirty = false;
         }
         lastProgress = progress;
         lastReveal = platesReveal;
+        lastMeasure = measureReveal;
+        lastWoodDim = woodDimReveal;
       };
       frame = requestAnimationFrame(tick);
     }, (e) => onProgressRef.current?.(Math.min((e.loaded / (e.total || MODEL_BYTES)) * 0.95, 0.95)));
@@ -421,8 +547,8 @@ export default function DrumViewer({ className, style, focusRef, controllerRef, 
       pmrem.dispose();
       renderer.dispose();
       renderer.domElement.remove();
-      hintEls.line.remove();
       hintEls.label.remove();
+      dims.remove();
     };
   }, [focusRef, controllerRef, scrollRef, tour]);
 
@@ -430,6 +556,14 @@ export default function DrumViewer({ className, style, focusRef, controllerRef, 
   useEffect(() => {
     if (hintLabelRef.current) hintLabelRef.current.textContent = hint ?? "";
   }, [hint]);
+  useEffect(() => {
+    measureLabelRef.current = measureLabel;
+    dimsRef.current?.label(0, measureLabel ?? "");
+  }, [measureLabel]);
+  useEffect(() => {
+    woodLabelRef.current = woodLabel;
+    dimsRef.current?.label(1, woodLabel ?? "");
+  }, [woodLabel]);
 
   return (
     <div
@@ -451,13 +585,12 @@ const KEYS: Record<"start" | "select" | "reset" | "east" | "south" | "dpad", [nu
   south: [1.617, 12.922, 0.2],    // back
   dpad: [-1.659, 12.446, 0.58],
 };
-// Square caps get outlines that follow them: half-extents of the reset cap, and the D-pad's reach and arm half-width.
-const RESET_HALF = [0.107, 0.131];
-const DPAD_REACH = 0.556, DPAD_ARM = 0.194;
-const OUTLINE_GAP = 0.022, OUTLINE_WIDTH = 0.03;
-const CAP_BASE_Y = 0.848;         // housing surface around the caps; rings sit here
+const CAP_BASE_Y = 0.848;         // housing surface around the caps
+// Two caps at the ends of the diagonal row of small keys the + sits in (x, z): the "Try me!" label follows its slant.
+const LEFT_KEY_ROW: [number, number][] = [[-1.73, 11.0], [-0.97, 11.455]];
+const CAP_MIN_Y = 0.7;            // caps are the loose parts standing above this; the housing starts at 0
 const ACCENT = 0x2f6bff;          // matches the page's blue buttons
-const RIPPLE_PERIOD = 1.6;        // s, the "press me" pulse on + and −
+const PULSE_PERIOD = 1.6;         // s, the "press me" pulse on + and −
 
 /** Which controls do something on the current screen. */
 function enabledKeys(screen: Onigiri["screen"]): (keyof typeof KEYS)[] {
@@ -478,114 +611,38 @@ function keyAt(x: number, z: number, enabled: (keyof typeof KEYS)[]): Key | null
   return null;
 }
 
-// The housing's opening over the screen quad (Controller_Low local space), measured from the mesh. The quad itself
-// runs ~0.03 further on each side, under the bezel.
-const SCREEN_WINDOW = { x0: -0.674, x1: 0.631, z0: 12.33, z1: 13.023 };
-const SCREEN_PAD = 0.035;     // black border between the bezel and the first pixel column
-const PIXEL_FILL = 0.84;      // lit share of each pixel cell; the rest is the screen-door gap
-const OLED_LIT = [0.86, 0.93, 1.0]; // linear RGB; SSD1306 white has a faint cool cast
-const OLED_OFF = [0.004, 0.0045, 0.006]; // unlit pixels, barely visible against the black glass
-
 /**
  * Runs the firmware menu on the onigiri's OLED and lets its 3D buttons drive it.
  * `target` receives the pointer events (the canvas itself ignores them); `canvas` is only measured.
  */
 function wireOnigiri(
   controller: THREE.Object3D, camera: THREE.Camera, canvas: HTMLCanvasElement, target: HTMLElement,
-  hint?: { line: HTMLElement; label: HTMLElement },
+  hint?: { label: HTMLElement },
 ) {
-  let screen: THREE.Mesh | undefined;
-  controller.traverse((o) => {
-    if (o instanceof THREE.Mesh && [o.material].flat().some((m) => m.name === "Schermo_MAT")) screen = o;
-  });
-
   const oled = new Onigiri(performance.now());
-  // One texel per OLED pixel, nearest-sampled; the shader draws each one as a lit cell with a dark gap.
-  const texels = new Uint8Array(OLED_W * OLED_H);
-  const texture = new THREE.DataTexture(texels, OLED_W, OLED_H, THREE.RedFormat);
-  texture.magFilter = texture.minFilter = THREE.NearestFilter;
-  const upload = () => {
-    for (let i = 0; i < texels.length; i++) texels[i] = oled.pixels[i] * 255;
-    texture.needsUpdate = true;
-  };
-  upload();
+  const screen = oledScreen(controller, oled);
 
-  if (screen) {
-    // The quad's own UVs point into the material atlas, and the housing's window is a little smaller than the
-    // quad, so map the panel onto the window instead: centred, 2:1, inset by SCREEN_PAD. UV (0,0) is the panel's
-    // top-left pixel; anything outside 0..1 is rendered as black glass.
-    const { x0, x1, z0, z1 } = SCREEN_WINDOW;
-    const width = Math.min(x1 - x0, ((z1 - z0) * OLED_W) / OLED_H) - 2 * SCREEN_PAD;
-    const height = (width * OLED_H) / OLED_W;
-    const left = (x0 + x1 - width) / 2, top = (z0 + z1 - height) / 2;
-    const geometry = screen.geometry.clone();
-    const pos = geometry.getAttribute("position");
-    const uv = new THREE.Float32BufferAttribute(new Float32Array(pos.count * 2), 2);
-    for (const i of new Set(geometry.index!.array)) uv.setXY(i, (pos.getX(i) - left) / width, (pos.getZ(i) - top) / height);
-    geometry.setAttribute("uv", uv);
-    screen.geometry.dispose();
-    screen.geometry = geometry;
-    for (const m of [screen.material].flat()) m.dispose();
-    screen.material = new THREE.ShaderMaterial({
-      uniforms: { panel: { value: texture } },
-      vertexShader: `varying vec2 vUv;
-        void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
-      fragmentShader: `uniform sampler2D panel;
-        varying vec2 vUv;
-        void main() {
-          vec2 grid = vec2(${OLED_W}.0, ${OLED_H}.0);
-          vec2 p = vUv * grid;
-          float inside = step(0.0, vUv.x) * step(vUv.x, 1.0) * step(0.0, vUv.y) * step(vUv.y, 1.0);
-          float on = texture2D(panel, (floor(p) + 0.5) / grid).r * inside;
-          // Screen door: each pixel is a square of side ${PIXEL_FILL} with a dark gap around it. fwidth keeps the
-          // edge one screen pixel soft, so it fades to the average instead of shimmering when the screen is small.
-          vec2 d = abs(fract(p) - 0.5), w = fwidth(p);
-          vec2 cell = 1.0 - smoothstep(${PIXEL_FILL / 2} - w, ${PIXEL_FILL / 2} + w, d);
-          float mask = cell.x * cell.y;
-          vec3 lit = vec3(${OLED_LIT.join(", ")}), off = vec3(${OLED_OFF.join(", ")});
-          gl_FragColor = vec4(mix(off * inside, lit, on) * mask, 1.0);
-          #include <colorspace_fragment>
-        }`,
-    });
-  }
-
-  // Rings around the controls that currently do something; + and − also pulse, and fill up while held.
-  const ringMaterial = (opacity: number) => new THREE.MeshBasicMaterial({
-    color: ACCENT, transparent: true, opacity, depthWrite: false, toneMapped: false, side: THREE.DoubleSide,
+  // The controls that currently do something light up: their own caps, picked out of the housing mesh and redrawn
+  // in the accent colour over themselves. + and − pulse on the idle screen; a held key lights up fully.
+  let body: THREE.Mesh | undefined;
+  controller.traverse((o) => {
+    if (o instanceof THREE.Mesh && [o.material].flat().some((m) => m.name === "Controller_MAT")) body = o;
   });
-  const ringGeometry = (r: number, arc = Math.PI * 2): THREE.BufferGeometry =>
-    new THREE.RingGeometry(r * 1.12, r * 1.3, 48, 1, Math.PI / 2, -arc).rotateX(-Math.PI / 2);
-  /** A flat band around a square or cross cap: the cap's outline grown by the gap, minus itself grown by gap + width. */
-  const outlineGeometry = (key: keyof typeof KEYS, r: number): THREE.BufferGeometry => {
-    const polygon = (grow: number) => {
-      if (key === "reset") {
-        const [hx, hz] = [RESET_HALF[0] + grow, RESET_HALF[1] + grow];
-        return [[-hx, -hz], [hx, -hz], [hx, hz], [-hx, hz]];
-      }
-      const [l, a] = [DPAD_REACH + grow, DPAD_ARM + grow];
-      return [[-a, -l], [a, -l], [a, -a], [l, -a], [l, a], [a, a], [a, l], [-a, l], [-a, a], [-l, a], [-l, -a], [-a, -a]];
-    };
-    if (key !== "reset" && key !== "dpad") return ringGeometry(r);
-    const shape = new THREE.Shape(polygon(OUTLINE_GAP + OUTLINE_WIDTH).map(([x, y]) => new THREE.Vector2(x, y)));
-    shape.holes.push(new THREE.Path(polygon(OUTLINE_GAP).map(([x, y]) => new THREE.Vector2(x, y))));
-    return new THREE.ShapeGeometry(shape).rotateX(-Math.PI / 2);
-  };
-  const rings = Object.fromEntries(Object.entries(KEYS).map(([key, [x, z, r]]) => {
-    const ring = new THREE.Mesh(outlineGeometry(key as keyof typeof KEYS, r), ringMaterial(0.55));
-    ring.position.set(x, CAP_BASE_Y, z);
-    controller.add(ring);
-    return [key, ring];
-  }));
-  const hints = (["start", "select"] as const).map((key) => {
-    const [x, z, r] = KEYS[key];
-    const ripple = new THREE.Mesh(ringGeometry(r), ringMaterial(0));
-    const fill = new THREE.Mesh(new THREE.BufferGeometry(), ringMaterial(1));
-    ripple.position.set(x, CAP_BASE_Y, z);
-    fill.position.set(x, CAP_BASE_Y + 0.001, z);
-    controller.add(ripple, fill);
-    return { key, r, ripple, fill, arc: -1 };
-  });
-  const overlays = [...Object.values(rings), ...hints.flatMap((h) => [h.ripple, h.fill])];
+  const caps = body ? looseParts(body.geometry).filter((p) => p.min.y > CAP_MIN_Y) : [];
+  const glows = Object.fromEntries(Object.entries(KEYS).flatMap(([key, [x, z, r]]) => {
+    const mine = caps.filter((p) => Math.hypot((p.min.x + p.max.x) / 2 - x, (p.min.z + p.max.z) / 2 - z) < r);
+    const geometry = body && geometryOf(body.geometry, mine);
+    if (!geometry) return [];
+    const glow = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({
+      color: ACCENT, transparent: true, opacity: 0, depthWrite: false, toneMapped: false,
+      polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1,
+    }));
+    glow.visible = false;
+    glow.userData.overlay = true; // not part of the housing when the onigiri fades
+    body!.add(glow);
+    return [[key, glow]];
+  })) as Partial<Record<keyof typeof KEYS, THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>>>;
+  const overlays = Object.values(glows);
 
   let active = false;
   let tried = false; // the hint goes away for good after the first press
@@ -629,68 +686,59 @@ function wireOnigiri(
   target.addEventListener("contextmenu", noMenu);
   target.style.userSelect = "none";
 
-  // Arrow from beside the housing (left of it, or above when there's no room) to the + key.
+  // "Try me!" written in blue just above the + key, tilted along the diagonal row of small keys it sits in, like a
+  // label printed on the shell. No arrow.
   const bounds = new THREE.Box3();
   const p = new THREE.Vector3();
   const toScreen = (v: THREE.Vector3) => {
     v.project(camera);
     return [(v.x + 1) / 2 * canvas.clientWidth, (1 - v.y) / 2 * canvas.clientHeight];
   };
-  const placeHint = ({ line, label }: { line: HTMLElement; label: HTMLElement }) => {
-    const [kx, ky] = toScreen(controller.localToWorld(p.set(KEYS.start[0], CAP_BASE_Y, KEYS.start[1])));
+  const at = (x: number, z: number) => toScreen(controller.localToWorld(p.set(x, CAP_BASE_Y, z)));
+  const placeHint = ({ label }: { label: HTMLElement }) => {
     bounds.setFromObject(controller);
-    let minX = Infinity, minY = Infinity, maxX = -Infinity;
+    let minX = Infinity, maxX = -Infinity;
     for (let i = 0; i < 8; i++) {
-      const [x, y] = toScreen(p.set(i & 1 ? bounds.max.x : bounds.min.x, i & 2 ? bounds.max.y : bounds.min.y, i & 4 ? bounds.max.z : bounds.min.z));
-      minX = Math.min(minX, x); minY = Math.min(minY, y); maxX = Math.max(maxX, x);
+      const [x] = toScreen(p.set(i & 1 ? bounds.max.x : bounds.min.x, i & 2 ? bounds.max.y : bounds.min.y, i & 4 ? bounds.max.z : bounds.min.z));
+      minX = Math.min(minX, x); maxX = Math.max(maxX, x);
     }
     // Grow with the controller on screen: 1 at ~480px wide (where 20px text reads right), capped for huge screens.
     const k = THREE.MathUtils.clamp((maxX - minX) / 480, 1, 2.4);
-    line.style.setProperty("--hint-scale", String(k));
     label.style.setProperty("--hint-scale", String(k));
-    const lw = label.offsetWidth, lh = label.offsetHeight, GAP = 12 * k, PAD = 8 * k, KEY_CLEAR = 20 * k;
-    const left = minX - GAP - PAD - lw >= 16;
-    const [sx, sy] = left ? [minX - GAP, ky - 40 * k] : [kx - 32 * k, Math.max(minY - GAP, lh + 16)];
-    label.style.transform = left
-      ? `translate(${sx - PAD - lw}px, ${sy - lh / 2}px)`
-      : `translate(${sx - lw / 2}px, ${sy - PAD - lh}px)`;
-    const len = Math.max(Math.hypot(kx - sx, ky - sy) - KEY_CLEAR, 0);
-    line.style.width = `${len}px`;
-    line.style.transform = `translate(${sx}px, ${sy}px) rotate(${Math.atan2(ky - sy, kx - sx)}rad)`;
+    const [kx, ky] = at(KEYS.start[0], KEYS.start[1]);
+    const [[ax, ay], [bx, by]] = LEFT_KEY_ROW.map(([x, z]) => at(x, z));
+    const angle = Math.atan2(by - ay, bx - ax);
+    // Off the key along the row's normal, on the side that is up on screen, clear of the cap.
+    let nx = Math.sin(angle), ny = -Math.cos(angle);
+    if (ny > 0) { nx = -nx; ny = -ny; }
+    const capRadius = Math.abs(at(KEYS.start[0] + KEYS.start[2], KEYS.start[1])[0] - kx);
+    const d = capRadius + label.offsetHeight / 2 + 4 * k;
+    label.style.transform = `translate(${kx + nx * d}px, ${ky + ny * d}px) translate(-50%, -50%) rotate(${angle}rad)`;
   };
 
   return {
     /** `progress` is the camera's flight to the controller; the onigiri only takes input once it has landed. */
     update(now: number, progress: number) {
-      active = progress === 1;
+      // Live as soon as the camera has all but landed: the last few % of the damped flight are invisible anyway.
+      active = progress >= 0.97;
       if (!active) release();
-      if (oled.update(now)) upload();
+      if (oled.update(now)) screen?.upload();
 
       const show = THREE.MathUtils.smoothstep(progress, 0.85, 1);
       const enabled = enabledKeys(oled.screen);
-      for (const [key, ring] of Object.entries(rings)) {
-        ring.visible = show > 0 && enabled.includes(key as keyof typeof KEYS);
-        ring.material.opacity = 0.55 * show;
-      }
-      const holding = oled.hotkeyProgress;
-      for (const h of hints) {
-        const idle = show > 0 && oled.screen === "idle";
-        const t = (now / 1000 / RIPPLE_PERIOD) % 1;
-        h.ripple.visible = idle && holding === 0;
-        h.ripple.scale.setScalar(1 + t * 0.9);
-        h.ripple.material.opacity = 0.7 * (1 - t) * show;
-        // ponytail: rebuilt only when the arc changes, i.e. while + or − is held
-        const arc = idle && held === h.key ? holding : 0;
-        h.fill.visible = arc > 0;
-        if (arc !== h.arc && arc > 0) {
-          h.fill.geometry.dispose();
-          h.fill.geometry = ringGeometry(h.r, arc * Math.PI * 2);
-        }
-        h.arc = arc;
+      const pulse = 0.5 - 0.5 * Math.cos((2 * Math.PI * now) / 1000 / PULSE_PERIOD);
+      for (const [key, glow] of Object.entries(glows) as [keyof typeof KEYS, THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>][]) {
+        const pressed = held === key || (key === "dpad" && held !== null && ["up", "down", "left", "right"].includes(held));
+        const level = !enabled.includes(key) ? 0
+          : pressed ? 0.95
+          : oled.screen === "idle" && (key === "start" || key === "select") ? 0.35 + 0.5 * pulse
+          : 0.55;
+        glow.material.opacity = level * show;
+        glow.visible = glow.material.opacity > 0;
       }
       if (hint) {
         const on = active && oled.screen === "idle" && !tried;
-        hint.line.style.opacity = hint.label.style.opacity = on ? "1" : "0";
+        hint.label.style.opacity = on ? "1" : "0";
         if (on) placeHint(hint);
       }
     },
@@ -700,13 +748,170 @@ function wireOnigiri(
       target.removeEventListener("pointerup", release);
       target.removeEventListener("pointercancel", release);
       target.removeEventListener("contextmenu", noMenu);
-      texture.dispose();
+      screen?.dispose();
       for (const o of overlays) {
         o.geometry.dispose();
         o.material.dispose();
       }
     },
   };
+}
+
+/**
+ * Steps `value` toward `target` by at most `up` (rising) or `down` (falling), and holds once there. The old
+ * `target > value ? rise : fall` fell whenever value had already reached target, so a finished reveal kept dipping
+ * and recovering: the Ø arrow visibly breathed in and out while parked.
+ */
+function approach(value: number, target: number, up: number, down: number) {
+  return value < target ? Math.min(value + up, target) : Math.max(value - down, target);
+}
+
+/**
+ * Dimensions laid over the canvas: lines and arrowheads in one SVG, each label an HTML pill (.dim-pill, the site's
+ * measuring style). `set` repositions one per frame; the DOM is only touched when something actually changed, so a
+ * parked camera leaves the overlay alone (rewriting identical values every frame made Firefox shimmer).
+ */
+function dimensionOverlay(host: HTMLElement, count: number) {
+  const NS = "http://www.w3.org/2000/svg";
+  const root = document.createElement("div");
+  root.className = "drum-dims";
+  const svg = document.createElementNS(NS, "svg");
+  root.append(svg);
+  const items = Array.from({ length: count }, () => {
+    const g = document.createElementNS(NS, "g");
+    const [ext, line, heads] = ["dim-ext", "dim-line", "dim-heads"].map((cls) => {
+      const p = document.createElementNS(NS, "path");
+      p.setAttribute("class", cls);
+      g.append(p);
+      return p;
+    });
+    const pill = document.createElement("span");
+    pill.className = "dim-pill";
+    g.style.opacity = pill.style.opacity = "0";
+    svg.append(g);
+    root.append(pill);
+    return { g, ext, line, heads, pill, last: "" };
+  });
+  host.append(root);
+  return {
+    set(i: number, d: Dimension, lineOpacity: number, labelOpacity: number) {
+      const it = items[i];
+      const key = `${d.ext}|${d.line}|${d.heads}|${d.label.x.toFixed(1)},${d.label.y.toFixed(1)}|${lineOpacity.toFixed(3)}|${labelOpacity.toFixed(3)}`;
+      if (key === it.last) return;
+      it.last = key;
+      it.ext.setAttribute("d", d.ext);
+      it.line.setAttribute("d", d.line);
+      it.heads.setAttribute("d", d.heads);
+      it.g.style.opacity = lineOpacity.toFixed(3);
+      it.pill.style.opacity = labelOpacity.toFixed(3);
+      it.pill.style.transform = `translate(${d.label.x.toFixed(1)}px, ${d.label.y.toFixed(1)}px) ${d.label.anchor}`;
+    },
+    hide(i: number) {
+      const it = items[i];
+      if (it.last === "hidden") return;
+      it.last = "hidden";
+      it.g.style.opacity = it.pill.style.opacity = "0";
+    },
+    label(i: number, text: string) { if (items[i]) items[i].pill.textContent = text; },
+    remove() { root.remove(); },
+  };
+}
+
+/**
+ * Turns `roots` see-through together. A transparent mesh blends its own back and inner faces in draw order, which
+ * flickers as the drum turns; a depth-only twin drawn in the opaque pass leaves just the front surface. Pass
+ * `masks = false` when what is behind those faces (the solid stand inside the ghost drum) has to show through.
+ * Meshes tagged `userData.overlay` (glows, the solid stand) are left alone.
+ */
+function fader(roots: (THREE.Object3D | undefined)[]) {
+  const materials = new Set<THREE.Material>();
+  const masks: THREE.Mesh[] = [];
+  const depthOnly = new THREE.MeshBasicMaterial({ colorWrite: false });
+  for (const root of roots) root?.traverse((o) => {
+    if (!(o instanceof THREE.Mesh) || o.userData.mask || o.userData.overlay) return;
+    for (const m of [o.material].flat()) materials.add(m);
+    const mask = new THREE.Mesh(o.geometry, depthOnly);
+    mask.userData.mask = true;
+    mask.visible = false;
+    o.add(mask);
+    masks.push(mask);
+  });
+  let last = -1, lastMasks = true;
+  return (opacity: number, useMasks = true) => {
+    if (opacity === last && useMasks === lastMasks) return;
+    last = opacity;
+    lastMasks = useMasks;
+    for (const m of materials) {
+      m.opacity = opacity;
+      m.transparent = opacity < 1;
+      m.visible = opacity > 0;
+      if (m instanceof THREE.ShaderMaterial && m.uniforms.opacity) m.uniforms.opacity.value = opacity;
+    }
+    for (const mask of masks) mask.visible = useMasks && opacity > 0 && opacity < 1;
+  };
+}
+
+/** The stand's triangles out of the drum mesh, as a geometry sharing its vertex buffer; null if none match. */
+function standOf(geometry: THREE.BufferGeometry): THREE.BufferGeometry | null {
+  return geometryOf(geometry, looseParts(geometry).filter((p) => {
+    const mid = Math.abs((p.min.x + p.max.x) / 2);
+    return p.max.x - p.min.x < STAND_MAX_WIDTH && mid > STAND_X[0] && mid < STAND_X[1];
+  }));
+}
+
+type Part = { tris: number[]; min: THREE.Vector3; max: THREE.Vector3 };
+
+/** A geometry drawing just `parts` of `source`, sharing its vertex buffer; null when there is nothing to draw. */
+function geometryOf(source: THREE.BufferGeometry, parts: Part[]): THREE.BufferGeometry | null {
+  const index = parts.flatMap((p) => p.tris);
+  if (!index.length) return null;
+  const geometry = new THREE.BufferGeometry();
+  // Every attribute, not just position: the solid stand is drawn with the drum's own textured material.
+  for (const [name, attribute] of Object.entries(source.attributes)) geometry.setAttribute(name, attribute);
+  geometry.setIndex(index);
+  return geometry;
+}
+
+/** The mesh's loose parts (connected components), each as its triangles' vertex indices and its bounding box. */
+function looseParts(geometry: THREE.BufferGeometry): Part[] {
+  const pos = geometry.getAttribute("position");
+  const index = geometry.index;
+  if (!index) return [];
+  // Loose parts = connected components, after welding vertices that split only for UV/normal seams.
+  const parent = new Int32Array(pos.count);
+  const welded = new Map<string, number>();
+  for (let i = 0; i < pos.count; i++) {
+    const key = `${pos.getX(i).toFixed(4)},${pos.getY(i).toFixed(4)},${pos.getZ(i).toFixed(4)}`;
+    const first = welded.get(key);
+    parent[i] = first ?? i;
+    if (first === undefined) welded.set(key, i);
+  }
+  const find = (x: number) => {
+    while (parent[x] !== x) x = parent[x] = parent[parent[x]];
+    return x;
+  };
+  for (let t = 0; t < index.count; t += 3) {
+    const a = find(index.getX(t));
+    for (let c = 1; c < 3; c++) {
+      const b = find(index.getX(t + c));
+      if (b !== a) parent[b] = a;
+    }
+  }
+  const parts = new Map<number, Part>();
+  const v = new THREE.Vector3();
+  for (let t = 0; t < index.count; t += 3) {
+    const root = find(index.getX(t));
+    let part = parts.get(root);
+    if (!part) parts.set(root, part = { tris: [], min: new THREE.Vector3(Infinity, Infinity, Infinity), max: new THREE.Vector3(-Infinity, -Infinity, -Infinity) });
+    for (let c = 0; c < 3; c++) {
+      const i = index.getX(t + c);
+      part.tris.push(i);
+      v.fromBufferAttribute(pos, i);
+      part.min.min(v);
+      part.max.max(v);
+    }
+  }
+  return [...parts.values()];
 }
 
 function disposeModel(root: THREE.Object3D) {
@@ -725,20 +930,6 @@ function disposeModel(root: THREE.Object3D) {
 // the reflection does the grounding.
 /** Three-point studio rig and a blurred mirror floor. */
 function stage(radius: number, floorY: number): THREE.Object3D[] {
-  // Key: warm, high, and 3/4 off to the right — an overhead light gave the drum head no gradient.
-  const key = new THREE.SpotLight(0xffffff, KEY_INTENSITY, 0, 0.85, 1);
-  key.position.set(radius * 1.6, radius * 2.2, radius * 1.8);
-  key.decay = 0; // ponytail: distance-independent, so intensity stays put if the model is rescaled
-  key.target.position.set(0, 0, 0);
-
-  // Fill: cool and weak, opposite the key, so the shadow side reads as shape rather than a hole.
-  const fill = new THREE.DirectionalLight(0xc8daff, FILL_INTENSITY);
-  fill.position.set(-radius * 2.2, radius * 0.8, radius * 1.2);
-
-  // Back: behind and above, catching the rope and the rim of the head.
-  const rim = new THREE.DirectionalLight(0xffffff, BACK_INTENSITY);
-  rim.position.set(-radius * 0.8, radius * 1.8, -radius * 2.4);
-
   // ponytail: a disc that ends inside the fade radius, so the mirror has no edge left to show.
   const floor = new Reflector(new THREE.CircleGeometry(radius * FLOOR_RADIUS, 64), {
     textureWidth: 1024, // resized to the canvas in fit()
@@ -755,7 +946,153 @@ function stage(radius: number, floorY: number): THREE.Object3D[] {
 
   fadeAndBlur(floor.material as THREE.ShaderMaterial, radius);
 
-  return [key, key.target, fill, rim, floor];
+  // A soft pool of light on the floor, under the mirror: off by default, raised at the stand stop so the black
+  // stand reads against something lighter than the near-black page.
+  const pool = document.createElement("canvas");
+  pool.width = pool.height = 256;
+  const ctx = pool.getContext("2d")!;
+  const g = ctx.createRadialGradient(128, 128, 0, 128, 128, 128);
+  g.addColorStop(0, "rgba(255,255,255,1)");
+  g.addColorStop(0.55, "rgba(255,255,255,0.45)");
+  g.addColorStop(1, "rgba(255,255,255,0)");
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, 256, 256);
+  const glow = new THREE.Mesh(
+    new THREE.CircleGeometry(radius * FLOOR_GLOW_RADIUS, 64),
+    new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(pool), color: 0xb4bfd0, transparent: true, opacity: 0, depthWrite: false, toneMapped: false }),
+  );
+  glow.name = "floorGlow";
+  glow.rotateX(-Math.PI / 2);
+  glow.position.y = floorY - radius * 0.001;
+  glow.renderOrder = -1; // before the mirror, which blends its reflection over it
+  glow.visible = false;
+
+  return [...lights(radius), floor, glow];
+}
+
+/** The key, fill and back lights, placed around a subject of `radius` at the origin. */
+function lights(radius: number): THREE.Object3D[] {
+  // Key: warm, high, and 3/4 off to the right — an overhead light gave the drum head no gradient.
+  const key = new THREE.SpotLight(0xffffff, KEY_INTENSITY, 0, 0.85, 1);
+  key.position.set(radius * 1.6, radius * 2.2, radius * 1.8);
+  key.decay = 0; // ponytail: distance-independent, so intensity stays put if the model is rescaled
+  key.target.position.set(0, 0, 0);
+
+  // Fill: cool and weak, opposite the key, so the shadow side reads as shape rather than a hole.
+  const fill = new THREE.DirectionalLight(0xc8daff, FILL_INTENSITY);
+  fill.position.set(-radius * 2.2, radius * 0.8, radius * 1.2);
+
+  // Back: behind and above, catching the rope and the rim of the head.
+  const rim = new THREE.DirectionalLight(0xffffff, BACK_INTENSITY);
+  rim.position.set(-radius * 0.8, radius * 1.8, -radius * 2.4);
+
+  return [key, key.target, fill, rim];
+}
+
+/**
+ * A small, slowly turning drum (no controller or cable) under the same lights as the hero, for the closing CTA.
+ * Its own little renderer: loads and compiles the model at page load when the browser is idle, and draws (turns)
+ * only while it is on screen.
+ */
+export function MiniDrum({ className }: { className?: string }) {
+  const hostRef = useRef<HTMLDivElement>(null);
+  const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    const host = hostRef.current!;
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.toneMapping = THREE.NeutralToneMapping;
+    renderer.toneMappingExposure = EXPOSURE;
+    renderer.domElement.style.cssText = "width:100%;height:100%;display:block";
+    host.appendChild(renderer.domElement);
+
+    const scene = new THREE.Scene();
+    const pmrem = new THREE.PMREMGenerator(renderer);
+    scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+    scene.environmentIntensity = ENV_INTENSITY;
+    const camera = new THREE.PerspectiveCamera(30, 1);
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+
+    let drum: THREE.Object3D | null = null;
+    let radius = 1;
+    let onScreen = false, loading = false, disposed = false, frame = 0;
+    let previousTime = performance.now();
+
+    const draw = () => { if (drum) renderer.render(scene, camera); };
+    const resize = () => {
+      const { clientWidth: w, clientHeight: h } = host;
+      if (!w || !h) return;
+      renderer.setSize(w, h, false);
+      camera.aspect = w / h;
+      // Fit the bounding sphere in the narrower of the two fields of view.
+      const vFov = THREE.MathUtils.degToRad(camera.fov);
+      const fov = Math.min(vFov, 2 * Math.atan(Math.tan(vFov / 2) * camera.aspect));
+      const dist = radius / Math.sin(fov / 2);
+      camera.position.set(0, 0.3, 1).normalize().multiplyScalar(dist);
+      camera.lookAt(0, 0, 0);
+      camera.near = dist * 0.01;
+      camera.far = dist * 3;
+      camera.updateProjectionMatrix();
+      draw();
+    };
+    const load = () => {
+      loading = true;
+      new GLTFLoader().load(MODEL_URL, (gltf) => {
+        if (disposed) return disposeModel(gltf.scene);
+        for (const name of ["Controller_Low", "Cavo_Low"]) {
+          const part = gltf.scene.getObjectByName(name);
+          if (!part) continue;
+          part.removeFromParent();
+          disposeModel(part);
+        }
+        const sphere = new THREE.Box3().setFromObject(gltf.scene).getBoundingSphere(new THREE.Sphere());
+        gltf.scene.position.sub(sphere.center);
+        radius = sphere.radius * 0.9; // the sphere is loose around a drum this shape; a little crop fills the box
+        drum = new THREE.Group().add(gltf.scene);
+        drum.rotation.y = -0.5; // three-quarter view, the rope and stand both read
+        scene.add(drum, ...lights(radius));
+        resize();
+        renderer.compile(scene, camera);
+        draw();
+        setReady(true);
+      });
+    };
+
+    const tick = (time: number) => {
+      frame = requestAnimationFrame(tick);
+      const dt = Math.min((time - previousTime) / 1000, 0.05);
+      previousTime = time;
+      if (!onScreen || !drum || reducedMotion.matches) return;
+      drum.rotation.y += dt * 0.5;
+      draw();
+    };
+    frame = requestAnimationFrame(tick);
+
+    // Loaded and compiled at page load, in an idle moment: doing it when the footer scrolls in would stutter.
+    whenIdle(4000).then(() => { if (!disposed && !loading) load(); });
+    const io = new IntersectionObserver(([entry]) => {
+      onScreen = entry.isIntersecting;
+      if (onScreen) draw();
+    }, { rootMargin: "300px" });
+    io.observe(host);
+    const ro = new ResizeObserver(resize);
+    ro.observe(host);
+
+    return () => {
+      disposed = true;
+      cancelAnimationFrame(frame);
+      io.disconnect();
+      ro.disconnect();
+      disposeModel(scene);
+      scene.environment?.dispose();
+      pmrem.dispose();
+      renderer.dispose();
+      renderer.domElement.remove();
+    };
+  }, []);
+
+  return <div ref={hostRef} aria-hidden className={className} style={{ opacity: ready ? 1 : 0, transition: "opacity 500ms ease" }} />;
 }
 
 /** Patches the Reflector shader: blur the mirror with distance and fade it into the page. */
