@@ -102,7 +102,7 @@ const MAC = "02:1A:2B:3C:4D:5E"; // ponytail: the real one is per-device; any pl
 
 // Menu::Buttons repeat timing (ms)
 const REPEAT_DELAY = 1000, REPEAT_INTERVAL = 20, FAST_REPEAT_DELAY = 5000, FAST_REPEAT_INTERVAL = 2;
-const HOTKEY_HOLD = 2000, SPLASH_MS = 2000;
+const SPLASH_MS = 2000;
 
 const bitmap = (b64: string) => Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
 const BITMAPS = {
@@ -122,7 +122,6 @@ export class Onigiri {
   private stack: MenuState[] = [];
   screen: "splash" | "idle" | "menu" = "splash";
   private splashAt: number;
-  private hotkeySince = -1;
   private clock: number;
 
   constructor(now: number) {
@@ -130,17 +129,11 @@ export class Onigiri {
     this.draw();
   }
 
-  /** 0..1 while + or − is held on the idle screen. */
-  get hotkeyProgress() {
-    return this.hotkeySince < 0 ? 0 : Math.min((this.clock - this.hotkeySince) / HOTKEY_HOLD, 1);
-  }
-
   /** The Pico's reset button: reboot, dropping anything changed in a menu that was never closed. */
   reset() {
     this.settings = { ...this.stored };
     this.stack = [];
     this.held.clear();
-    this.hotkeySince = -1;
     this.screen = "splash";
     this.splashAt = this.clock;
   }
@@ -167,15 +160,12 @@ export class Onigiri {
       return;
     }
     if (this.screen === "idle") {
-      // ponytail: firmware wants + and − held together; a mouse has one pointer, so either one counts.
+      // The firmware wants + and − held together for 2 s; on the page a single press of either opens the menu,
+      // so trying it is instant.
       if (this.held.has("start") || this.held.has("select")) {
-        if (this.hotkeySince < 0) this.hotkeySince = now;
-        else if (now - this.hotkeySince > HOTKEY_HOLD) {
-          this.hotkeySince = -1;
-          this.stack = [{ page: "Main", selected: 0, original: 0 }];
-          this.screen = "menu";
-        }
-      } else this.hotkeySince = -1;
+        this.stack = [{ page: "Main", selected: 0, original: 0 }];
+        this.screen = "menu";
+      }
       return;
     }
     this.menuUpdate(now);

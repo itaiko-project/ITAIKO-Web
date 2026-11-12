@@ -44,8 +44,8 @@ function halfShapes(): THREE.Shape[] {
  * All four plates (centre and rim, left and right), lying in the XY plane with their back face at z = 0,
  * in mm; scale the group to the model.
  */
-export function buildPlates(material: THREE.Material): THREE.Group {
-  const geometry = new THREE.ExtrudeGeometry(halfShapes(), { depth: THICKNESS, bevelEnabled: false, curveSegments: 48 });
+export function buildPlates(material: THREE.Material, thickness = THICKNESS): THREE.Group {
+  const geometry = new THREE.ExtrudeGeometry(halfShapes(), { depth: thickness, bevelEnabled: false, curveSegments: 48 });
   const right = new THREE.Mesh(geometry, material);
   const left = new THREE.Mesh(geometry, material);
   left.scale.x = -1; // three flips the winding for negative scale, so the mirror renders right side out
