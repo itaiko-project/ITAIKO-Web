@@ -1,0 +1,190 @@
+{
+  "landing": {
+    "nav": {
+      "buy": "Tienda",
+      "next": "Siguiente sección"
+    },
+    "hero": {
+      "welcome": "Te presentamos",
+      "tagline1a": "El ",
+      "tagline1b": "taiko de arcade",
+      "tagline1c": ", directo a tu casa.",
+      "tagline2": "Mismas dimensiones que el original, diseñado y ensamblado en Italia."
+    },
+    "cta": {
+      "configure": "Configura tu tambor",
+      "demo": "¡Prueba el configurador web!",
+      "buy": "Comprar ahora"
+    },
+    "onigiri1": {
+      "article": "El",
+      "name": "Onigiri-con",
+      "tagline1": "El «cerebro» de ITAIKO: úsalo como controlador o para configurar el tambor desde su pantalla OLED.",
+      "tagline2": "También compatible con TaikoForce y ZhongTaiko.",
+      "tryMe": "¡Pruébame!",
+      "port": "Puerto JTAG-8",
+      "screen": "¡Configura el tambor sobre la marcha!"
+    },
+    "specs": {
+      "ticker": [
+        {
+          "value": "Ø 43 cm",
+          "label": "Parche de tamaño arcade"
+        },
+        {
+          "value": "1000 Hz",
+          "label": "Sondeo USB"
+        },
+        {
+          "value": "3 mm",
+          "label": "Placas de acero galvanizado"
+        },
+        {
+          "value": "8",
+          "label": "Modos de mando"
+        },
+        {
+          "value": "12 mm",
+          "label": "Contrachapado de abedul"
+        },
+        {
+          "value": "40 mm",
+          "label": "Placas Ka más anchas"
+        },
+        {
+          "value": "128×64",
+          "label": "OLED integrada"
+        },
+        {
+          "value": "0",
+          "label": "Software que instalar"
+        },
+        {
+          "value": "MIDI",
+          "label": "Modo tambor USB"
+        },
+        {
+          "value": "100%",
+          "label": "Código abierto"
+        },
+        {
+          "value": "Italia",
+          "label": "Diseñado y ensamblado"
+        }
+      ]
+    },
+    "specSheet": {
+      "heading": "Especificaciones",
+      "rows": [
+        {
+          "label": "Materiales",
+          "value": "Placas de contrachapado de abedul de 12 mm, placas de acero galvanizado de 3 mm"
+        },
+        {
+          "label": "Soporte",
+          "value": "Impreso en 3D en PETG, se desmonta fácilmente con 4 tornillos de mano, sin destornillador"
+        },
+        {
+          "label": "Controlador",
+          "value": "E-box Onigiri-con, OLED de 128×64, hardware y firmware de código abierto"
+        },
+        {
+          "label": "Sondeo",
+          "value": "USB a 1000 Hz"
+        },
+        {
+          "label": "Plataformas",
+          "value": "PC · PS3 · PS4* · Nintendo Switch 1 y 2 · máquina arcade original · USB MIDI"
+        }
+      ],
+      "note": "*Necesitas aportar tus propias claves de PS4."
+    },
+    "faq": {
+      "heading": "FAQ",
+      "items": [
+        {
+          "q": "¿Con qué plataformas funciona?",
+          "a": "PC, PS3, PS4, Nintendo Switch 1 y 2 y la máquina arcade original. En modo MIDI también funciona como tambor USB MIDI en cualquier software musical. Elige el modo desde el menú OLED o el configurador web."
+        },
+        {
+          "q": "¿Tengo que instalar algún software?",
+          "a": "No. Pon el tambor en modo teclado (Keyboard P1 o P2), conéctalo y abre el configurador en un navegador con WebSerial (Chrome, Edge, Opera, Firefox). También puedes ajustarlo todo desde la OLED de la E-box."
+        },
+        {
+          "q": "El tambor registra golpes que no he dado. ¿Qué hago?",
+          "a": "Baja la sensibilidad de ese pad desde el menú OLED o desde el monitor en vivo del configurador, donde ves las lecturas de cada pad en tiempo real."
+        },
+        {
+          "q": "¿Puedo usar el Onigiri-con con otro tambor?",
+          "a": "Sí. También es compatible con los tambores TaikoForce y ZhongTaiko."
+        },
+        {
+          "q": "¿De verdad es de código abierto?",
+          "a": "Sí: el firmware, el hardware y este configurador están en GitHub. Incluso puedes construirte el tuyo."
+        }
+      ]
+    },
+    "closing": {
+      "heading": "Consigue tu",
+      "tagline": "¿Listo para la experiencia taiko definitiva?"
+    },
+    "tour": {
+      "measure": "Ø 43 cm / 17 in",
+      "compare": {
+        "ours": "ITAIKO",
+        "original": "Tambor arcade original",
+        "steel": {
+          "ours": "3 mm",
+          "original": "≈ 2 mm"
+        },
+        "birch": {
+          "ours": "12 mm",
+          "original": "≈ 10 mm"
+        },
+        "ka": {
+          "ours": "Ka 40 mm",
+          "original": "Ka ≈ 30 mm"
+        }
+      },
+      "items": [
+        {
+          "eyebrow": "Superficie de golpeo",
+          "stat": "",
+          "title": "Goma arcade auténtica",
+          "body": "La goma es exactamente la misma de las máquinas arcade, para una sensación 100 % arcade."
+        },
+        {
+          "eyebrow": "Bajo la goma",
+          "stat": "3 mm",
+          "title": "Placas de acero galvanizado",
+          "body": "Hemos ensanchado las placas de acero para unos redobles sin precedentes y, ya puestos, también las hemos hecho más gruesas: tus bachi rebotarán (casi) solas."
+        },
+        {
+          "eyebrow": "Cuerpo",
+          "stat": "12 mm",
+          "title": "Contrachapado de abedul",
+          "body": "El cuerpo de ITAIKO es de contrachapado de abedul de 12 mm, comprado y cortado en Italia. Rígido y denso, devuelve cada golpe con un sonido seco y contundente."
+        },
+        {
+          "eyebrow": "Soporte",
+          "stat": "",
+          "title": "Nuevos soportes con portabachi",
+          "body": "Diseñados para ser ligeros y fáciles de montar: basta con apretar o aflojar 4 tornillos de mano, sin necesidad de destornillador.",
+          "extra": "¡Y en la parte frontal puedes apoyar tus bachi!"
+        }
+      ]
+    }
+  },
+  "configure": {
+    "header": {
+      "logoAlt": "Logo"
+    },
+    "advanced": {
+      "label": "Avanzado"
+    },
+    "tabs": {
+      "config": "Configuración",
+      "monitor": "Monitor en vivo"
+    }
+  }
+}

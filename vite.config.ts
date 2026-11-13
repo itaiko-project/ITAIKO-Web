@@ -1,8 +1,26 @@
-import { defineConfig } from 'vite'
+import { defineConfig, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 import path from "path"
 import tailwindcss from "@tailwindcss/vite"
 import { VitePWA } from 'vite-plugin-pwa'
+
+// The home page's 3D code (three.js and the drum viewer) is a lazy chunk, so the browser only learns about it after the
+// main bundle has downloaded and run. This hands their hashed file names to the inline script in index.html, which
+// preloads them (on the home page only) in parallel with the main bundle.
+function preloadDrumChunks(): Plugin {
+  return {
+    name: "preload-drum-chunks",
+    transformIndexHtml: {
+      order: "post",
+      handler(html, ctx) {
+        const files = Object.values(ctx.bundle ?? {})
+          .filter((c) => c.type === "chunk" && /^(DrumViewer|materials)$/.test(c.name))
+          .map((c) => JSON.stringify("/" + c.fileName));
+        return html.replace("/*__DRUM_CHUNKS__*/", files.join(", "));
+      },
+    },
+  };
+}
 
 // https://vite.dev/config/
 export default defineConfig({
@@ -12,6 +30,7 @@ export default defineConfig({
   base: '/',
   plugins: [
     react(),
+    preloadDrumChunks(),
     tailwindcss(),
     VitePWA({
       registerType: 'prompt',

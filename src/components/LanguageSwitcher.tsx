@@ -11,6 +11,10 @@ import {
 const LANGUAGES = [
   { code: "en", label: "English" },
   { code: "it", label: "Italiano" },
+  { code: "es", label: "Español" },
+  { code: "fr", label: "Français" },
+  { code: "de", label: "Deutsch" },
+  { code: "pt", label: "Português" },
   { code: "zh-TW", label: "繁體中文" },
 ];
 
@@ -23,7 +27,7 @@ export function LanguageSwitcher() {
         <Button variant="ghost" size="sm" className="gap-1 p-0 h-auto font-normal text-sm md:text-base text-foreground/70 hover:text-foreground hover:bg-transparent">
           <Languages className="h-4 w-4" />
           <span>
-            {LANGUAGES.find((l) => l.code === i18n.language)?.label ??
+            {LANGUAGES.find((l) => l.code === i18n.language || l.code === i18n.resolvedLanguage)?.label ??
               (i18n.language.startsWith("zh") ? "繁體中文" : i18n.language.startsWith("it") ? "Italiano" : "English")}
           </span>
         </Button>

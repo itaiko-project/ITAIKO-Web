@@ -4,14 +4,12 @@ import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 import { Reflector } from "three/examples/jsm/objects/Reflector.js";
-import { Onigiri, type Button } from "./oled";
-import { oledScreen } from "./onigiriScreen";
+import { OLED_H, OLED_W, Onigiri, type Button } from "./oled";
+import { OLED_PANEL, oledScreen } from "./onigiriScreen";
 import { buildPlates } from "./plates";
-import { birchMaterial, galvanizedSteel, loadPlywood, PLY, whenIdle } from "./materials";
+import { birchMaterial, galvanizedSteel, loadPlywood, markSceneReady, MODEL_BYTES, MODEL_URL, PHONE, PIXEL_RATIO, PLY, sceneReady, whenIdle } from "./materials";
 import { dimension, type Dimension, type Point } from "./dimension";
 
-const MODEL_URL = "iTaiko.webp.glb";
-const MODEL_BYTES = 2_569_528; // progress fallback when the server sends no Content-Length
 
 // Stage look — tune these, everything else derives from the model's size.
 const FILL = 1.25;          // >1 crops the bounding sphere a little so the drum is not lost in whitespace
@@ -43,6 +41,13 @@ const WOOD_FLAT = 0.02;
 // holes, on the right.
 const WOOD_KA_DEG = 18;
 const WOOD_DIM_IN_S = 0.35, WOOD_DIM_OUT_S = 0.12; // its fade, once the camera has stopped on the plywood / on leaving
+const HERO_START = 0.6; // the drum's opening pose: turned three-quarters to its left (rad). The hero still matches it.
+// Load-time trace of the warm-up steps into window.__warm: dev builds, or ?trace on the live site.
+const TRACE = import.meta.env.DEV || (typeof location !== "undefined" && location.search.includes("trace"));
+const WARM_SLICE_MS = 24; // warm-up work per frame before yielding (see the warm-up)
+const WARM_FRAME_LIMIT_MS = 90; // a hidden warm-up frame slower than this: stay on the stills (software rendering)
+const ADAPT_FRAME_MS = 22; // average frame time above which the pixel ratio steps down (see the tick)
+const SLOW_SAMPLE_FRAMES = 45, SLOW_FRAME_MS = 45; // see the tick: average frame time that counts as too slow
 const DRUM_EXIT_TURN = Math.PI * 0.75; // stand → onigiri: the drum turns this far clockwise as it fades...
 const DRUM_EXIT_END = 0.45;            // ...and is gone by this share of the flight, well before the onigiri lands
 const FLOOR_GLOW = 0.22;       // the light pool's strength at the stand stop, so the black stand stands off the floor
@@ -85,7 +90,7 @@ type Pose = { box: { left: number; top: number; width: number; height: number };
  * Scrolling flies the camera through `tour` (one section each, right after the hero) and then onto the
  * controller in the section after those.
  */
-export default function DrumViewer({ className, style, focusRef, controllerRef, scrollRef, tour = [], hint, measureLabel, woodLabel, onProgress }: {
+export default function DrumViewer({ className, style, focusRef, controllerRef, scrollRef, tour = [], hint, measureLabel, woodLabel, onProgress, onFail, force, reveal = true }: {
   className?: string;
   /** Text on the diameter arrow at the `measure` stop. */
   measureLabel?: string;
@@ -93,6 +98,12 @@ export default function DrumViewer({ className, style, focusRef, controllerRef, 
   woodLabel?: string;
   /** 0..1 while the model downloads; 1 once it is on screen. */
   onProgress?: (progress: number) => void;
+  /** 3D is not going to work here (no WebGL, the model failed, the context was lost) or runs too slowly to be worth it. */
+  onFail?: (reason: "unsupported" | "error" | "slow") => void;
+  /** Capture mode (?3d=force): keep the 3D scene however slow, hold the hero still, no stand flash, plain onigiri. */
+  force?: boolean;
+  /** Show the canvas. The page holds it back until its loading bar has covered the swap from the stills. */
+  reveal?: boolean;
   /** Label for the arrow pointing at + on the controller slide, until the first press. */
   hint?: string;
   style?: React.CSSProperties;
@@ -107,14 +118,24 @@ export default function DrumViewer({ className, style, focusRef, controllerRef, 
   const dimsRef = useRef<ReturnType<typeof dimensionOverlay> | null>(null);
   const woodLabelRef = useRef(woodLabel);
   const onProgressRef = useRef(onProgress);
+  const onFailRef = useRef(onFail);
+  const revealRef = useRef(reveal);
+  useEffect(() => { revealRef.current = reveal; }, [reveal]);
+  useEffect(() => { onFailRef.current = onFail; }, [onFail]);
   useEffect(() => { onProgressRef.current = onProgress; }, [onProgress]);
-  const [ready, setReady] = useState(false);
 
   useEffect(() => {
     const host = hostRef.current!;
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    let renderer: THREE.WebGLRenderer;
+    try {
+      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    } catch {
+      onFailRef.current?.("unsupported");
+      return;
+    }
+    renderer.domElement.addEventListener("webglcontextlost", () => onFailRef.current?.("error"));
+    renderer.setPixelRatio(PIXEL_RATIO);
     // Neutral rolls the highlights off instead of clipping them — the drum head is near-white and
     // ACES was flattening it into a paper cutout.
     renderer.toneMapping = THREE.NeutralToneMapping;
@@ -147,7 +168,7 @@ export default function DrumViewer({ className, style, focusRef, controllerRef, 
     controls.enablePan = false;
     controls.enableZoom = false;
     controls.enableDamping = true;
-    controls.autoRotate = true;
+    controls.autoRotate = !force; // held still for captures, so the hero still is always the same pose
     controls.autoRotateSpeed = 1.2;
     controls.minPolarAngle = 0.45;
     controls.maxPolarAngle = Math.PI / 2 - 0.04; // never dip under the stage
@@ -180,7 +201,8 @@ export default function DrumViewer({ className, style, focusRef, controllerRef, 
       // Match the reflection to the canvas. A fixed low-res target stretched over the whole view
       // is what makes the reflection look blocky; the blur should come from the mip bias, not from
       // magnifying texels.
-      const scale = Math.min(renderer.getPixelRatio(), MIRROR_MAX / Math.max(w, h));
+      // The reflection is faint and soft: on phones half the canvas resolution is plenty, and halves the second pass.
+      const scale = Math.min(renderer.getPixelRatio(), MIRROR_MAX / Math.max(w, h)) * (PHONE ? 0.5 : 0.75);
       mirror?.getRenderTarget().setSize(Math.round(w * scale), Math.round(h * scale));
       }
 
@@ -268,11 +290,16 @@ export default function DrumViewer({ className, style, focusRef, controllerRef, 
 
       // The shared canvas leaves with the controller's section, so it cannot sit behind the ones after it.
       const last = stopCount() - 1;
-      host.style.opacity = String(1 - THREE.MathUtils.smoothstep(scrollTop / sectionHeight, last, last + 0.75));
+      // Hidden until warmed up and released by the page, so neither the warm-up frames nor a half-run animation show.
+      host.style.opacity = warm && revealRef.current ? String(1 - THREE.MathUtils.smoothstep(scrollTop / sectionHeight, last, last + 0.75)) : "0";
     };
 
     let frame = 0;
-    new GLTFLoader().load(MODEL_URL, (gltf) => {
+    let warm = false;
+    host.style.opacity = "0";
+    const loadStart = performance.now();
+    new GLTFLoader().load(MODEL_URL, async (gltf) => {
+      if (TRACE) ((window as unknown as { __warm?: string[] }).__warm ??= []).push(`gltf parsed at ${Math.round(performance.now() - loadStart)}ms`);
       if (disposed) {
         disposeModel(gltf.scene);
         return;
@@ -293,7 +320,7 @@ export default function DrumViewer({ className, style, focusRef, controllerRef, 
         bounds.getCenter(controllerCenter);
         bounds.getSize(controllerSize);
         hasController = true;
-        if (controllerRef?.current) onigiri = wireOnigiri(controller, camera, renderer.domElement, controllerRef.current, hintEls);
+        if (controllerRef?.current) onigiri = wireOnigiri(controller, camera, renderer.domElement, controllerRef.current, hintEls, force);
       }
       // The drum (and cable) fade out on the controller slide and for the bare plywood, and go see-through at the
       // stand; the onigiri fades for the plywood too.
@@ -303,7 +330,8 @@ export default function DrumViewer({ className, style, focusRef, controllerRef, 
       // Steel plates: hidden under the rubber, they slide out along the head's normal at their tour stop.
       const platesStop = tour.findIndex((s) => s.plates) + 1; // section index; 0 = none
       // Always transparent: toggling it swaps shader programs, and the first swap compiled mid-animation.
-      const steel = platesStop ? galvanizedSteel(renderer, { transparent: true }, () => { dirty = true; }).material : null;
+      const steelSet = platesStop ? galvanizedSteel(renderer, { transparent: true }, () => { dirty = true; }) : null;
+      const steel = steelSet?.material ?? null;
       const plates = steel ? buildPlates(steel) : null;
       if (plates) {
         plates.scale.setScalar(PLATE_SCALE);
@@ -341,14 +369,13 @@ export default function DrumViewer({ className, style, focusRef, controllerRef, 
       // Always transparent, like the steel, so no program swap mid-scroll.
       const woodMaterial = woodStop ? birchMaterial(renderer.capabilities.getMaxAnisotropy(), { transparent: true, opacity: 0 }) : null;
       let wood: THREE.Mesh | null = null;
-      if (woodMaterial) loadPlywood().then((geometry) => {
+      const woodLoaded = !woodMaterial ? Promise.resolve() : loadPlywood().then((geometry) => {
         if (disposed) return;
         wood = new THREE.Mesh(geometry, woodMaterial);
         wood.scale.set(PLATE_SCALE, PLATE_SCALE, PLATE_SCALE * WOOD_FLAT);
         wood.rotation.x = -HEAD_TILT;
         wood.position.copy(HEAD_CENTER).addScaledVector(HEAD_NORMAL, WOOD_LIFT);
         gltf.scene.add(wood);
-        renderer.compile(wood, camera, scene); // build the program (with the scene's lights) before it is ever shown
         wood.visible = false;
         dirty = true;
       });
@@ -365,34 +392,100 @@ export default function DrumViewer({ className, style, focusRef, controllerRef, 
       model = gltf.scene;
       width = height = 0; // size the newly created reflection target too
       fit();
-      // Shader warm-up: compile() builds programs without drawing a pixel, but skips hidden objects, so show every
-      // hidden one (plates, button glows, fade masks) and put the drum in its half-faded state for the call. That
-      // way nothing compiles mid-scroll when the plates come out or the camera reaches the controller.
+      // Warm-up, all of it before the first visible frame (the canvas is still at opacity 0). Wait for the late parts
+      // (steel textures, plywood) so their final programs exist too, show every hidden object (plates, plywood, glows,
+      // fade masks, floor light), then build every shader program and upload every texture the scene will ever use.
+      // One object at a time, yielding a frame whenever a slice runs long: browsers without parallel shader
+      // compilation (Firefox) compile on the main thread, and in one go this froze the page for seconds.
+      await Promise.all([steelSet?.ready, woodLoaded]);
+      if (disposed) return;
       const hidden: THREE.Object3D[] = [];
       scene.traverse((o) => {
         if (o.visible) return;
         hidden.push(o);
         o.visible = true;
       });
-      drumFade(0.5);
+      drumFade(0.5); // fade masks on too
       controllerFade?.(0.5);
-      renderer.compile(scene, camera);
+      const nextFrame = () => new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+      let slice = performance.now();
+      const pause = async () => {
+        if (performance.now() - slice < WARM_SLICE_MS) return true;
+        await nextFrame();
+        slice = performance.now();
+        return !disposed;
+      };
+      const textures = new Set<THREE.Texture>();
+      const meshes: THREE.Mesh[] = [];
+      scene.traverse((o) => {
+        if (!(o instanceof THREE.Mesh)) return;
+        meshes.push(o);
+        for (const m of [o.material].flat()) for (const v of Object.values(m)) if (v instanceof THREE.Texture) textures.add(v);
+      });
+      const trace = (label: string, t0: number) => { if (TRACE) ((window as unknown as { __warm?: string[] }).__warm ??= []).push(`${label} ${Math.round(performance.now() - t0)}ms`); };
+      for (const texture of textures) {
+        const t0 = performance.now();
+        renderer.initTexture(texture);
+        trace(`tex ${(texture.image as { width?: number } | null)?.width}`, t0);
+        if (!(await pause())) return;
+      }
+      // Each object drawn on its own (a camera layer holding just it and the lights). Drawing, not compile(): ANGLE (Firefox and Chrome on Windows) builds the real D3D shaders at
+      // the first draw, so compile() alone left one 1.4 s stall for the first frame. The mirror goes last: its own
+      // draw renders the whole scene into its target, which by then has every program it needs.
+      const WARM_LAYER = 31;
+      const lightsInScene: THREE.Object3D[] = [];
+      scene.traverse((o) => { if (o instanceof THREE.Light) lightsInScene.push(o); });
+      for (const light of lightsInScene) light.layers.enable(WARM_LAYER);
+      camera.layers.set(WARM_LAYER);
+      meshes.sort((a, b) => Number(a === mirror) - Number(b === mirror));
+      for (const mesh of meshes) {
+        mesh.layers.enable(WARM_LAYER);
+        // One draw covers the mirror too: its target shares the canvas's shader programs (see stage()).
+        const t0 = performance.now();
+        renderer.render(scene, camera);
+        trace(`draw ${mesh.name || mesh.type}`, t0);
+        mesh.layers.disable(WARM_LAYER);
+        if (!(await pause())) return;
+      }
+      camera.layers.set(0);
+      for (const light of lightsInScene) light.layers.disable(WARM_LAYER);
       drumFade(1);
       controllerFade?.(1);
+      const r0 = performance.now();
+      renderer.render(scene, camera); // anything the per-object pass missed (cheap now)
+      trace("first render", r0);
+      if (!(await pause())) return;
+      // One more, timed to the GPU (reading a pixel back waits for it): a device that needs this long for a single
+      // frame is not up to the scene. Better to stay on the stills than show the 3D and then drop it.
+      const gl = renderer.getContext();
+      const started = performance.now();
+      renderer.render(scene, camera);
+      gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array(4));
+      if (!force && performance.now() - started > WARM_FRAME_LIMIT_MS) {
+        onFailRef.current?.("slow");
+        return;
+      }
       for (const o of hidden) o.visible = false;
-      setReady(true);
+      warm = true;
+      // Dev only: lets a test check that no shader compiles after this point (renderer.info.programs stays put).
+      if (import.meta.env.DEV) (window as unknown as { __drumRenderer?: THREE.WebGLRenderer }).__drumRenderer = renderer;
       onProgressRef.current?.(1);
+      markSceneReady();
 
       // Horizontal drags (and the auto-spin) turn the drum, not the camera, so the fixed lights
       // sweep across it. OrbitControls still owns the vertical orbit; we siphon off its azimuth
       // each frame — that keeps its damping, so the spin coasts to a stop like a real orbit.
       const drum = gltf.scene;
-      let heroRotation = 0;
+      let heroRotation = HERO_START;
       let platesReveal = 0;
       let measureReveal = 0;
       let standBlink = -1, standArmed = true; // seconds into the flash, -1 when idle; re-armed once you leave the stop
       let lastProgress = -1, lastReveal = -1, lastMeasure = -1;
       let woodDimReveal = 0, lastWoodDim = -1;
+      let anchor = 0, lastRequested = -1;
+      let sampled = 0, sampledMs = 0;
+      let frameAvg = 16, slowFrames = 0, wasDrawing = false, wasShown = false;
+      let baseRatio = PIXEL_RATIO; // the scene's pixel ratio, lowered by the adaptive step below when frames are slow
       let woodDim: Dimension | null = null;
       const labelPoint = new THREE.Vector3();
       let previousTime = performance.now();
@@ -429,7 +522,20 @@ export default function DrumViewer({ className, style, focusRef, controllerRef, 
 
       const tick = (time: number) => {
         frame = requestAnimationFrame(tick);
-        const dt = Math.min((time - previousTime) / 1000, 0.05);
+        // First couple of seconds on the hero (it redraws every frame there): if frames average under ~22 fps, this
+        // device is not up to the 3D scene, and the page falls back to its still images.
+        // (Only frames actually drawn on screen count: the canvas stays hidden until the page reveals it.)
+        if (!force && host.style.opacity !== "0" && sampled < SLOW_SAMPLE_FRAMES && time - previousTime < 1000) {
+          sampledMs += time - previousTime;
+          sampled++;
+          // Hopeless (software rendering): call it after a few frames instead of sitting through 45 of them.
+          if ((sampled === 8 && sampledMs / sampled > 150) || (sampled === SLOW_SAMPLE_FRAMES && sampledMs / sampled > SLOW_FRAME_MS)) {
+            sampled = SLOW_SAMPLE_FRAMES;
+            onFailRef.current?.("slow");
+          }
+        }
+        const frameMs = time - previousTime;
+        const dt = Math.min(frameMs / 1000, 0.05);
         previousTime = time;
         const scroll = scrollRef?.current;
         const last = stopCount() - 1;
@@ -440,7 +546,15 @@ export default function DrumViewer({ className, style, focusRef, controllerRef, 
         // Ease in and out of every stop, not just the first and last.
         const k = Math.min(Math.floor(requested), Math.max(last - 1, 0));
         const goal = reducedMotion.matches ? Math.round(requested) : k + THREE.MathUtils.smoothstep(requested - k, 0, 1);
-        progress = reducedMotion.matches ? goal : THREE.MathUtils.damp(progress, goal, 9, dt);
+        // First frame (the 3D just took over from the stills, wherever the page already is) or a jump of more than
+        // one slide at once (the page faded out and scrolled instantly): put the camera straight there. Flying would
+        // replay every slide in between at high speed.
+        const snap = lastRequested < 0 || Math.abs(requested - lastRequested) > 1.01;
+        if (snap) {
+          progress = goal;
+          anchor = Math.round(requested);
+          standArmed = false; // no flash replaying on a stand slide the 3D only just took over
+        } else progress = reducedMotion.matches ? goal : THREE.MathUtils.damp(progress, goal, 9, dt);
         if (Math.abs(progress - goal) < 0.0001) progress = goal;
         controls.enabled = requested === 0 && progress === 0;
         if (controls.enabled) {
@@ -456,12 +570,17 @@ export default function DrumViewer({ className, style, focusRef, controllerRef, 
         // The close-ups are framed on the drum facing front, so unwind the hero spin on the way to the first.
         drum.rotation.y = heroRotation * (1 - Math.min(progress, 1));
         // How far the drum has given way to a stop's own scene (1 parked there, 0 by 0.6 of a section away).
-        const near = (stop: number) => stop ? 1 - THREE.MathUtils.smoothstep(Math.abs(progress - stop), 0.1, 0.6) : 0;
+        // Where the scroll last came to rest. A stop's own show (plywood, plates, measure, stand flash) only plays when
+        // you arrive from next door or leave it; skipping across several slides flies straight past without them.
+        if (Number.isInteger(requested) && requested === lastRequested) anchor = requested;
+        lastRequested = requested;
+        const reachable = (stop: number) => Math.abs(anchor - stop) <= 1;
+        const near = (stop: number) => stop && reachable(stop) ? 1 - THREE.MathUtils.smoothstep(Math.abs(progress - stop), 0.1, 0.6) : 0;
         const woodAmount = near(woodStop), standAmount = near(standStop);
         if (plates) {
           // Out as soon as you scroll on (fast), so the steel is gone before the plywood starts to show.
-          const want = Math.abs(progress - platesStop) < 0.2 ? 1 : 0;
-          platesReveal = reducedMotion.matches ? want : approach(platesReveal, want, dt / PLATES_REVEAL_S, dt / PLATES_EXIT_S);
+          const want = reachable(platesStop) && Math.abs(progress - platesStop) < 0.2 && Math.abs(requested - platesStop) < 0.2 ? 1 : 0;
+          platesReveal = reducedMotion.matches || snap ? want : approach(platesReveal, want, dt / PLATES_REVEAL_S, dt / PLATES_EXIT_S);
           const t = THREE.MathUtils.smootherstep(platesReveal, 0, 1);
           // Starts just under the rubber, so it reads as coming out of the drum. It crosses the surface at t ≈ 0.1,
           // still invisible, then fades in as it rises, so the clipping through the rubber never shows.
@@ -472,19 +591,19 @@ export default function DrumViewer({ className, style, focusRef, controllerRef, 
         }
         if (measureStop) {
           // Only while parked at the stop: it should not trail the camera into the next flight.
-          const want = Math.abs(progress - measureStop) < 0.15 ? 1 : 0;
-          measureReveal = reducedMotion.matches ? want : approach(measureReveal, want, dt / MEASURE_REVEAL_S, dt / MEASURE_EXIT_S);
+          const want = reachable(measureStop) && Math.abs(progress - measureStop) < 0.15 && Math.abs(requested - measureStop) < 0.15 ? 1 : 0;
+          measureReveal = reducedMotion.matches || snap ? want : approach(measureReveal, want, dt / MEASURE_REVEAL_S, dt / MEASURE_EXIT_S);
         }
         if (woodStop) {
           // In only once the camera has come to rest on the plywood; out quickly as soon as it moves on.
           const want = progress === woodStop && woodAmount === 1 ? 1 : 0;
-          woodDimReveal = reducedMotion.matches ? want : approach(woodDimReveal, want, dt / WOOD_DIM_IN_S, dt / WOOD_DIM_OUT_S);
+          woodDimReveal = reducedMotion.matches || snap ? want : approach(woodDimReveal, want, dt / WOOD_DIM_IN_S, dt / WOOD_DIM_OUT_S);
         }
         if (standFlash) {
           const away = Math.abs(progress - standStop);
           if (away > 0.5) standArmed = true;
           if (away > 0.05) standBlink = -1; // scrolled on: stop flashing right away, don't finish the second blink
-          if (standArmed && away < 0.02 && !reducedMotion.matches) {
+          if (standArmed && away < 0.02 && requested === standStop && !reducedMotion.matches && !force) {
             standArmed = false;
             standBlink = 0;
           }
@@ -493,7 +612,9 @@ export default function DrumViewer({ className, style, focusRef, controllerRef, 
             if (standBlink > STAND_BLINK_S) standBlink = -1;
           }
           // sin² over two half-periods: two soft flashes that start and end dark.
-          standGlow.opacity = standBlink < 0 ? 0 : 0.85 * Math.sin((2 * Math.PI * standBlink) / STAND_BLINK_S) ** 2;
+          // Captures hold the flash fully on or off (window.__standFlash), to shoot the still and its lit twin.
+          const held = force && (window as unknown as { __standFlash?: boolean }).__standFlash;
+          standGlow.opacity = held ? 0.85 : standBlink < 0 ? 0 : 0.85 * Math.sin((2 * Math.PI * standBlink) / STAND_BLINK_S) ** 2;
           standFlash.visible = standGlow.opacity > 0;
         }
         drum.updateMatrixWorld();
@@ -512,14 +633,37 @@ export default function DrumViewer({ className, style, focusRef, controllerRef, 
         drumFade(Math.min(1 - THREE.MathUtils.smoothstep(toController, 0.05, DRUM_EXIT_END), 1 - woodAmount));
         controllerFade?.(1 - woodAmount);
         onigiri?.update(time, toController);
+        if (renderer.getPixelRatio() !== baseRatio) {
+          renderer.setPixelRatio(baseRatio);
+          width = height = 0; // re-size the canvas and the mirror target to the new ratio
+          dirty = true;
+        }
         fit();
 
         // Only draw when the picture can change: the hero spins, the controller animates, the camera or plates are
         // moving. Parked on a tour stop, or faded out past the controller, the GPU idles.
         const moving = controls.enabled || toController > 0 || progress !== lastProgress || platesReveal !== lastReveal
           || measureReveal !== lastMeasure || woodDimReveal !== lastWoodDim || standBlink >= 0 || standGlow.opacity > 0;
-        if ((moving || dirty) && host.style.opacity !== "0") {
+        // The canvas just became visible (released by the page after loading): draw now. Parked on a still slide
+        // (scrolled there while loading) nothing else would, leaving the last warm-up frame up and no measure on it.
+        const shown = host.style.opacity !== "0";
+        if (shown && !wasShown) dirty = true;
+        wasShown = shown;
+        const drawing = (moving || dirty) && shown;
+        // Adaptive resolution: while drawing continuously, frames that stay slow (≈ under 45 fps for ~1.5 s) step the
+        // pixel ratio down by a quarter, never below 1. Fill rate is what the shading costs; this keeps it smooth.
+        if (drawing && wasDrawing && frameMs < 250 && !force) {
+          frameAvg += (frameMs - frameAvg) * 0.05;
+          if (++slowFrames > 90 && frameAvg > ADAPT_FRAME_MS && baseRatio > 1) {
+            baseRatio = Math.max(1, baseRatio - 0.25); // applied by the next frame's ratio check
+            frameAvg = 16;
+            slowFrames = 0;
+          }
+        }
+        wasDrawing = drawing;
+        if (drawing) {
           placeDimensions();
+          onigiri?.placeOled();
           renderer.render(scene, camera);
           dirty = false;
         }
@@ -529,7 +673,7 @@ export default function DrumViewer({ className, style, focusRef, controllerRef, 
         lastWoodDim = woodDimReveal;
       };
       frame = requestAnimationFrame(tick);
-    }, (e) => onProgressRef.current?.(Math.min((e.loaded / (e.total || MODEL_BYTES)) * 0.95, 0.95)));
+    }, (e) => onProgressRef.current?.(Math.min((e.loaded / (e.total || MODEL_BYTES)) * 0.95, 0.95)), () => onFailRef.current?.("error"));
 
     const ro = new ResizeObserver(() => { dirty = true; fit(); });
     ro.observe(host);
@@ -550,6 +694,7 @@ export default function DrumViewer({ className, style, focusRef, controllerRef, 
       hintEls.label.remove();
       dims.remove();
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- force is fixed for the page's lifetime
   }, [focusRef, controllerRef, scrollRef, tour]);
 
   // Separate from the scene so a language switch doesn't reload the model.
@@ -569,7 +714,7 @@ export default function DrumViewer({ className, style, focusRef, controllerRef, 
     <div
       ref={hostRef}
       className={className}
-      style={{ ...style, opacity: ready ? 1 : 0, transition: "opacity 500ms ease" }}
+      style={{ ...style, transition: "opacity 400ms ease" }}
     />
   );
 }
@@ -618,9 +763,32 @@ function keyAt(x: number, z: number, enabled: (keyof typeof KEYS)[]): Key | null
 function wireOnigiri(
   controller: THREE.Object3D, camera: THREE.Camera, canvas: HTMLCanvasElement, target: HTMLElement,
   hint?: { label: HTMLElement },
+  plain = false, // captures for the static fallback: no highlighted keys, no "Try me!"
 ) {
   const oled = new Onigiri(performance.now());
   const screen = oledScreen(controller, oled);
+
+  // The OLED again, as a 2D canvas laid exactly over the 3D screen: the scene draws at a reduced pixel ratio, too
+  // coarse for 128×64 pixel text on a phone, but this one layer is scaled by the browser at the device's full
+  // resolution, nearest-neighbour. Only shown once the camera has landed on the onigiri.
+  const oledCanvas = document.createElement("canvas");
+  oledCanvas.width = OLED_W;
+  oledCanvas.height = OLED_H;
+  oledCanvas.className = "oled-overlay";
+  canvas.parentElement?.append(oledCanvas);
+  const oledCtx = oledCanvas.getContext("2d")!;
+  const oledImage = oledCtx.createImageData(OLED_W, OLED_H);
+  const drawOled = () => {
+    const d = oledImage.data;
+    for (let i = 0; i < oled.pixels.length; i++) {
+      const lit = oled.pixels[i] > 0;
+      d[4 * i] = lit ? 222 : 2; d[4 * i + 1] = lit ? 238 : 3; d[4 * i + 2] = lit ? 255 : 4; d[4 * i + 3] = 255;
+    }
+    oledCtx.putImageData(oledImage, 0, 0);
+  };
+  drawOled();
+  let oledShown = false, oledPlaced = "";
+  const corner = new THREE.Vector3();
 
   // The controls that currently do something light up: their own caps, picked out of the housing mesh and redrawn
   // in the accent colour over themselves. + and − pulse on the idle screen; a held key lights up fully.
@@ -722,7 +890,11 @@ function wireOnigiri(
       // Live as soon as the camera has all but landed: the last few % of the damped flight are invisible anyway.
       active = progress >= 0.97;
       if (!active) release();
-      if (oled.update(now)) screen?.upload();
+      if (oled.update(now)) {
+        screen?.upload();
+        drawOled();
+      }
+      oledShown = progress > 0.98;
 
       const show = THREE.MathUtils.smoothstep(progress, 0.85, 1);
       const enabled = enabledKeys(oled.screen);
@@ -733,16 +905,33 @@ function wireOnigiri(
           : pressed ? 0.95
           : oled.screen === "idle" && (key === "start" || key === "select") ? 0.35 + 0.5 * pulse
           : 0.55;
-        glow.material.opacity = level * show;
+        glow.material.opacity = plain ? 0 : level * show;
         glow.visible = glow.material.opacity > 0;
       }
       if (hint) {
-        const on = active && oled.screen === "idle" && !tried;
+        const on = !plain && active && oled.screen === "idle" && !tried;
         hint.label.style.opacity = on ? "1" : "0";
         if (on) placeHint(hint);
       }
     },
+    /** Lays the OLED canvas over the screen as drawn this frame (call right before rendering). */
+    placeOled() {
+      if (!oledShown) {
+        if (oledPlaced !== "off") { oledCanvas.style.opacity = "0"; oledPlaced = "off"; }
+        return;
+      }
+      const { left, top, width, height, y } = OLED_PANEL;
+      const at = (x: number, z: number) => toScreen(controller.localToWorld(corner.set(x, y, z)));
+      const [ox, oy] = at(left, top), [rx, ry] = at(left + width, top), [dx, dy] = at(left, top + height);
+      // Seen from almost straight above, the panel projects to a parallelogram: an affine map of the 128×64 canvas.
+      const m = [(rx - ox) / OLED_W, (ry - oy) / OLED_W, (dx - ox) / OLED_H, (dy - oy) / OLED_H, ox, oy].map((v) => v.toFixed(3)).join(",");
+      if (m === oledPlaced) return;
+      oledPlaced = m;
+      oledCanvas.style.transform = `matrix(${m})`;
+      oledCanvas.style.opacity = "1";
+    },
     dispose() {
+      oledCanvas.remove();
       target.removeEventListener("pointerdown", onDown);
       target.removeEventListener("pointermove", onMove);
       target.removeEventListener("pointerup", release);
@@ -836,6 +1025,9 @@ function fader(roots: (THREE.Object3D | undefined)[]) {
     o.add(mask);
     masks.push(mask);
   });
+  // Always transparent (at opacity 1 it draws exactly like opaque): toggling the flag swaps the shader program, and
+  // every swap is another compile. Without parallel shader compilation (Firefox) each one froze the page.
+  for (const m of materials) m.transparent = true;
   let last = -1, lastMasks = true;
   return (opacity: number, useMasks = true) => {
     if (opacity === last && useMasks === lastMasks) return;
@@ -843,7 +1035,6 @@ function fader(roots: (THREE.Object3D | undefined)[]) {
     lastMasks = useMasks;
     for (const m of materials) {
       m.opacity = opacity;
-      m.transparent = opacity < 1;
       m.visible = opacity > 0;
       if (m instanceof THREE.ShaderMaterial && m.uniforms.opacity) m.uniforms.opacity.value = opacity;
     }
@@ -941,10 +1132,20 @@ function stage(radius: number, floorY: number): THREE.Object3D[] {
 
   // Mipmaps are the blur: sampling at a LOD bias costs one tap and gets softer with distance.
   const texture = floor.getRenderTarget().texture;
-  texture.generateMipmaps = true;
-  texture.minFilter = THREE.LinearMipmapLinearFilter;
+  // No mipmaps: regenerating them for a canvas-sized target every frame cost more than the faint blur they gave.
+  texture.generateMipmaps = false;
+  texture.minFilter = THREE.LinearFilter;
 
   fadeAndBlur(floor.material as THREE.ShaderMaterial, radius);
+
+  // The mirror pass renders with the canvas's exact output (tone mapping, sRGB), so every material uses the same
+  // shader program for both passes. Into a plain render target three drops tone mapping and outputs linear, and
+  // each material needed a second program just for the mirror: twice the compiles, which is what stalls the page
+  // where shaders compile on the main thread (Firefox). three only keeps the canvas output for XR targets, hence
+  // the flag. The reflector then shows the stored, already tone-mapped colours as they are.
+  (floor.getRenderTarget() as unknown as { isXRRenderTarget: boolean }).isXRRenderTarget = true;
+  texture.colorSpace = THREE.SRGBColorSpace;
+  (floor.material as THREE.ShaderMaterial).toneMapped = false;
 
   // A soft pool of light on the floor, under the mirror: off by default, raised at the stand stop so the black
   // stand reads against something lighter than the near-black page.
@@ -994,14 +1195,34 @@ function lights(radius: number): THREE.Object3D[] {
  * Its own little renderer: loads and compiles the model at page load when the browser is idle, and draws (turns)
  * only while it is on screen.
  */
+let parallelCompile: boolean | undefined;
+/** Whether this browser compiles shaders off the main thread (KHR_parallel_shader_compile). Checked once. */
+function hasParallelCompile() {
+  if (parallelCompile === undefined) {
+    const gl = document.createElement("canvas").getContext("webgl2");
+    parallelCompile = !!gl?.getExtension("KHR_parallel_shader_compile");
+    gl?.getExtension("WEBGL_lose_context")?.loseContext();
+  }
+  return parallelCompile;
+}
+
 export function MiniDrum({ className }: { className?: string }) {
   const hostRef = useRef<HTMLDivElement>(null);
   const [ready, setReady] = useState(false);
+  // A second live scene means a second set of shaders to compile. Where that blocks the page (no parallel
+  // compilation: Firefox) the small drum is its still image instead.
+  const [still] = useState(() => !hasParallelCompile());
 
   useEffect(() => {
+    if (still) return;
     const host = hostRef.current!;
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    let renderer: THREE.WebGLRenderer;
+    try {
+      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    } catch {
+      return; // no WebGL: the page shows its still image instead
+    }
+    renderer.setPixelRatio(PIXEL_RATIO);
     renderer.toneMapping = THREE.NeutralToneMapping;
     renderer.toneMappingExposure = EXPOSURE;
     renderer.domElement.style.cssText = "width:100%;height:100%;display:block";
@@ -1070,7 +1291,7 @@ export function MiniDrum({ className }: { className?: string }) {
     frame = requestAnimationFrame(tick);
 
     // Loaded and compiled at page load, in an idle moment: doing it when the footer scrolls in would stutter.
-    whenIdle(4000).then(() => { if (!disposed && !loading) load(); });
+    sceneReady.then(() => whenIdle(4000)).then(() => { if (!disposed && !loading) load(); });
     const io = new IntersectionObserver(([entry]) => {
       onScreen = entry.isIntersecting;
       if (onScreen) draw();
@@ -1090,8 +1311,9 @@ export function MiniDrum({ className }: { className?: string }) {
       renderer.dispose();
       renderer.domElement.remove();
     };
-  }, []);
+  }, [still]);
 
+  if (still) return <img src="static/mini.webp" alt="" loading="lazy" decoding="async" draggable={false} className={`${className ?? ""} object-contain`} />;
   return <div ref={hostRef} aria-hidden className={className} style={{ opacity: ready ? 1 : 0, transition: "opacity 500ms ease" }} />;
 }
 

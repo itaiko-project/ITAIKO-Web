@@ -12,6 +12,10 @@ import enHelp from "./locales/en/help.json";
 import enMessages from "./locales/en/messages.json";
 
 import itPages from "./locales/it/pages.json";
+import esPages from "./locales/es/pages.json";
+import frPages from "./locales/fr/pages.json";
+import dePages from "./locales/de/pages.json";
+import ptPages from "./locales/pt/pages.json";
 
 import zhTWCommon from "./locales/zh-TW/common.json";
 import zhTWPages from "./locales/zh-TW/pages.json";
@@ -33,9 +37,12 @@ export const resources = {
     help: enHelp,
     messages: enMessages,
   },
-  it: {
-    pages: itPages,
-  },
+  // Landing page only for these; the configurator falls back to English.
+  it: { pages: itPages },
+  es: { pages: esPages },
+  fr: { pages: frPages },
+  de: { pages: dePages },
+  pt: { pages: ptPages },
   "zh-TW": {
     common: zhTWCommon,
     pages: zhTWPages,
@@ -54,7 +61,9 @@ i18n
   .init({
     resources,
     fallbackLng: "en",
-    supportedLngs: ["en", "it", "zh-TW"],
+    supportedLngs: ["en", "it", "es", "fr", "de", "pt", "zh-TW"],
+    // "es-MX", "fr-CA", "de-AT"... resolve to their base language; any Chinese variant gets zh-TW.
+    nonExplicitSupportedLngs: false,
     defaultNS: "pages",
     interpolation: {
       // React already escapes values
