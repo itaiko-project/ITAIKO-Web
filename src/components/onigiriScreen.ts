@@ -11,6 +11,14 @@ const SCREEN_PAD = 0.035;     // black border between the bezel and the first pi
 const OLED_LIT = [0.86, 0.93, 1.0]; // linear RGB; SSD1306 white has a faint cool cast
 const OLED_OFF = [0.004, 0.0045, 0.006]; // unlit pixels, barely visible against the black glass
 
+/** The 128×64 panel inside the window (Controller_Low local x/z): centred, 2:1, inset by SCREEN_PAD. */
+export const OLED_PANEL = (() => {
+  const { x0, x1, z0, z1 } = SCREEN_WINDOW;
+  const width = Math.min(x1 - x0, ((z1 - z0) * OLED_W) / OLED_H) - 2 * SCREEN_PAD;
+  const height = (width * OLED_H) / OLED_W;
+  return { left: (x0 + x1 - width) / 2, top: (z0 + z1 - height) / 2, width, height, y: 0.85 };
+})();
+
 /** Centre of the screen window, in Controller_Low's local space (y just above the glass). */
 export const SCREEN_CENTER = new THREE.Vector3((SCREEN_WINDOW.x0 + SCREEN_WINDOW.x1) / 2, 0.85, (SCREEN_WINDOW.z0 + SCREEN_WINDOW.z1) / 2);
 
@@ -25,10 +33,14 @@ export function oledScreen(controller: THREE.Object3D, oled: Onigiri) {
   });
   if (!screen) return null;
 
-  // One texel per OLED pixel, nearest-sampled.
+  // One texel per OLED pixel. Up close, nearest: every pixel a crisp square. Drawn smaller than 128×64 (a phone),
+  // mipmapped: each screen pixel averages the OLED pixels under it, so thin strokes stay legible instead of
+  // whole pixels being skipped and the letters breaking apart.
   const texels = new Uint8Array(OLED_W * OLED_H);
   const texture = new THREE.DataTexture(texels, OLED_W, OLED_H, THREE.RedFormat);
-  texture.magFilter = texture.minFilter = THREE.NearestFilter;
+  texture.magFilter = THREE.NearestFilter;
+  texture.minFilter = THREE.LinearMipmapLinearFilter;
+  texture.generateMipmaps = true;
   const upload = () => {
     for (let i = 0; i < texels.length; i++) texels[i] = oled.pixels[i] * 255;
     texture.needsUpdate = true;
@@ -38,10 +50,7 @@ export function oledScreen(controller: THREE.Object3D, oled: Onigiri) {
   // The quad's own UVs point into the material atlas, and the housing's window is a little smaller than the
   // quad, so map the panel onto the window instead: centred, 2:1, inset by SCREEN_PAD. UV (0,0) is the panel's
   // top-left pixel; anything outside 0..1 is rendered as black glass.
-  const { x0, x1, z0, z1 } = SCREEN_WINDOW;
-  const width = Math.min(x1 - x0, ((z1 - z0) * OLED_W) / OLED_H) - 2 * SCREEN_PAD;
-  const height = (width * OLED_H) / OLED_W;
-  const left = (x0 + x1 - width) / 2, top = (z0 + z1 - height) / 2;
+  const { left, top, width, height } = OLED_PANEL;
   const geometry = screen.geometry.clone();
   const pos = geometry.getAttribute("position");
   const uv = new THREE.Float32BufferAttribute(new Float32Array(pos.count * 2), 2);
@@ -58,10 +67,9 @@ export function oledScreen(controller: THREE.Object3D, oled: Onigiri) {
       uniform float opacity;
       varying vec2 vUv;
       void main() {
-        vec2 grid = vec2(${OLED_W}.0, ${OLED_H}.0);
-        vec2 p = vUv * grid;
         float inside = step(0.0, vUv.x) * step(vUv.x, 1.0) * step(0.0, vUv.y) * step(vUv.y, 1.0);
-        float on = texture2D(panel, (floor(p) + 0.5) / grid).r * inside;
+        // Plain UV sampling: the texture's filters pick nearest (magnified) or averaged (minified).
+        float on = texture2D(panel, vUv).r * inside;
         vec3 lit = vec3(${OLED_LIT.join(", ")}), off = vec3(${OLED_OFF.join(", ")});
         gl_FragColor = vec4(mix(off * inside, lit, on), opacity);
         #include <colorspace_fragment>

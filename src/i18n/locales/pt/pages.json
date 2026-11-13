@@ -1,0 +1,190 @@
+{
+  "landing": {
+    "nav": {
+      "buy": "Loja",
+      "next": "Secção seguinte"
+    },
+    "hero": {
+      "welcome": "Apresentamos",
+      "tagline1a": "O ",
+      "tagline1b": "taiko de arcade",
+      "tagline1c": ", agora em tua casa.",
+      "tagline2": "Mesmas dimensões do original, concebido e montado em Itália."
+    },
+    "cta": {
+      "configure": "Configurar o tambor",
+      "demo": "Experimenta o configurador web!",
+      "buy": "Comprar agora"
+    },
+    "onigiri1": {
+      "article": "O",
+      "name": "Onigiri-con",
+      "tagline1": "O «cérebro» do ITAIKO: usa-o como controlador ou para configurar o tambor através do ecrã OLED.",
+      "tagline2": "Também compatível com TaikoForce e ZhongTaiko.",
+      "tryMe": "Experimenta-me!",
+      "port": "Porta JTAG-8",
+      "screen": "Configura o tambor na hora!"
+    },
+    "specs": {
+      "ticker": [
+        {
+          "value": "Ø 43 cm",
+          "label": "Pele de tamanho arcade"
+        },
+        {
+          "value": "1000 Hz",
+          "label": "Polling USB"
+        },
+        {
+          "value": "3 mm",
+          "label": "Placas de aço galvanizado"
+        },
+        {
+          "value": "8",
+          "label": "Modos de comando"
+        },
+        {
+          "value": "12 mm",
+          "label": "Contraplacado de bétula"
+        },
+        {
+          "value": "40 mm",
+          "label": "Placas Ka mais largas"
+        },
+        {
+          "value": "128×64",
+          "label": "OLED integrado"
+        },
+        {
+          "value": "0",
+          "label": "Software para instalar"
+        },
+        {
+          "value": "MIDI",
+          "label": "Modo tambor USB"
+        },
+        {
+          "value": "100%",
+          "label": "Open source"
+        },
+        {
+          "value": "Itália",
+          "label": "Concebido e montado"
+        }
+      ]
+    },
+    "specSheet": {
+      "heading": "Especificações",
+      "rows": [
+        {
+          "label": "Materiais",
+          "value": "Placas de contraplacado de bétula de 12 mm, placas de aço galvanizado de 3 mm"
+        },
+        {
+          "label": "Suporte",
+          "value": "Impresso em 3D em PETG, remove-se facilmente com 4 parafusos de mão, sem chave de fendas"
+        },
+        {
+          "label": "Controlador",
+          "value": "E-box Onigiri-con, OLED de 128×64, hardware e firmware open source"
+        },
+        {
+          "label": "Polling",
+          "value": "USB a 1000 Hz"
+        },
+        {
+          "label": "Plataformas",
+          "value": "PC · PS3 · PS4* · Nintendo Switch 1 e 2 · máquina arcade original · USB MIDI"
+        }
+      ],
+      "note": "*Tens de fornecer as tuas próprias chaves PS4."
+    },
+    "faq": {
+      "heading": "FAQ",
+      "items": [
+        {
+          "q": "Com que plataformas funciona?",
+          "a": "PC, PS3, PS4, Nintendo Switch 1 e 2 e a máquina arcade original. No modo MIDI também funciona como tambor USB MIDI em qualquer software de música. Escolhe o modo no menu OLED ou no configurador web."
+        },
+        {
+          "q": "Preciso de instalar software?",
+          "a": "Não. Põe o tambor em modo teclado (Keyboard P1 ou P2), liga-o e abre o configurador num navegador com WebSerial (Chrome, Edge, Opera, Firefox). Também podes ajustar tudo a partir do OLED da E-box."
+        },
+        {
+          "q": "O tambor regista batidas que não dei. O que faço?",
+          "a": "Baixa a sensibilidade desse pad no menu OLED ou no monitor em direto do configurador, onde vês as leituras de cada pad em tempo real."
+        },
+        {
+          "q": "Posso usar o Onigiri-con com outro tambor?",
+          "a": "Sim. Também é compatível com os tambores TaikoForce e ZhongTaiko."
+        },
+        {
+          "q": "É mesmo open source?",
+          "a": "Sim: o firmware, o hardware e este configurador estão no GitHub. Podes até construir o teu."
+        }
+      ]
+    },
+    "closing": {
+      "heading": "Garante o teu",
+      "tagline": "Pronto para a derradeira experiência taiko?"
+    },
+    "tour": {
+      "measure": "Ø 43 cm / 17 in",
+      "compare": {
+        "ours": "ITAIKO",
+        "original": "Tambor arcade original",
+        "steel": {
+          "ours": "3 mm",
+          "original": "≈ 2 mm"
+        },
+        "birch": {
+          "ours": "12 mm",
+          "original": "≈ 10 mm"
+        },
+        "ka": {
+          "ours": "Ka 40 mm",
+          "original": "Ka ≈ 30 mm"
+        }
+      },
+      "items": [
+        {
+          "eyebrow": "Superfície de batida",
+          "stat": "",
+          "title": "Borracha arcade verdadeira",
+          "body": "A borracha é exatamente a mesma das máquinas arcade, para uma sensação 100% arcade."
+        },
+        {
+          "eyebrow": "Debaixo da borracha",
+          "stat": "3 mm",
+          "title": "Placas de aço galvanizado",
+          "body": "Alargámos as placas de aço para rufos sem precedentes e, já agora, também as tornámos mais grossas: as tuas bachi vão ressaltar (quase) sozinhas."
+        },
+        {
+          "eyebrow": "Corpo",
+          "stat": "12 mm",
+          "title": "Contraplacado de bétula",
+          "body": "O corpo do ITAIKO é em contraplacado de bétula de 12 mm, comprado e cortado em Itália. Rígido e denso, devolve cada batida com um som seco e firme."
+        },
+        {
+          "eyebrow": "Suporte",
+          "stat": "",
+          "title": "Novos suportes com porta-bachi",
+          "body": "Pensados para serem leves e fáceis de montar: basta apertar ou desapertar 4 parafusos de mão, sem precisar de chave de fendas.",
+          "extra": "E na parte da frente podes pousar as tuas bachi!"
+        }
+      ]
+    }
+  },
+  "configure": {
+    "header": {
+      "logoAlt": "Logo"
+    },
+    "advanced": {
+      "label": "Avançado"
+    },
+    "tabs": {
+      "config": "Configuração",
+      "monitor": "Monitor em direto"
+    }
+  }
+}
