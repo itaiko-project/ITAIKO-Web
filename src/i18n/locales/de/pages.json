@@ -1,0 +1,190 @@
+{
+  "landing": {
+    "nav": {
+      "buy": "Shop",
+      "next": "Nächster Abschnitt"
+    },
+    "hero": {
+      "welcome": "Das ist",
+      "tagline1a": "Die ",
+      "tagline1b": "Arcade-Taiko",
+      "tagline1c": " – jetzt direkt bei dir zu Hause.",
+      "tagline2": "Gleiche Maße wie das Original, in Italien entwickelt und montiert."
+    },
+    "cta": {
+      "configure": "Trommel konfigurieren",
+      "demo": "Web-Konfigurator ausprobieren!",
+      "buy": "Jetzt kaufen"
+    },
+    "onigiri1": {
+      "article": "Der",
+      "name": "Onigiri-con",
+      "tagline1": "Das „Gehirn“ von ITAIKO: als Controller nutzbar oder zum Konfigurieren der Trommel direkt über das OLED-Display.",
+      "tagline2": "Auch kompatibel mit TaikoForce und ZhongTaiko.",
+      "tryMe": "Probier mich aus!",
+      "port": "JTAG-8-Anschluss",
+      "screen": "Trommel im Handumdrehen konfigurieren!"
+    },
+    "specs": {
+      "ticker": [
+        {
+          "value": "Ø 43 cm",
+          "label": "Schlagfläche in Arcade-Größe"
+        },
+        {
+          "value": "1000 Hz",
+          "label": "USB-Abfragerate"
+        },
+        {
+          "value": "3 mm",
+          "label": "Verzinkte Stahlplatten"
+        },
+        {
+          "value": "8",
+          "label": "Controller-Modi"
+        },
+        {
+          "value": "12 mm",
+          "label": "Birkensperrholz"
+        },
+        {
+          "value": "40 mm",
+          "label": "Breitere Ka-Platten"
+        },
+        {
+          "value": "128×64",
+          "label": "Integriertes OLED"
+        },
+        {
+          "value": "0",
+          "label": "Software zu installieren"
+        },
+        {
+          "value": "MIDI",
+          "label": "USB-Trommelmodus"
+        },
+        {
+          "value": "100%",
+          "label": "Open Source"
+        },
+        {
+          "value": "Italien",
+          "label": "Entwickelt und montiert"
+        }
+      ]
+    },
+    "specSheet": {
+      "heading": "Technische Daten",
+      "rows": [
+        {
+          "label": "Materialien",
+          "value": "Platten aus 12 mm Birkensperrholz, Platten aus 3 mm verzinktem Stahl"
+        },
+        {
+          "label": "Ständer",
+          "value": "3D-gedruckt aus PETG, mit 4 Handschrauben leicht abnehmbar, kein Schraubendreher nötig"
+        },
+        {
+          "label": "Controller",
+          "value": "Onigiri-con E-Box, 128×64-OLED, Open-Source-Hardware und -Firmware"
+        },
+        {
+          "label": "Abfragerate",
+          "value": "1000 Hz USB"
+        },
+        {
+          "label": "Plattformen",
+          "value": "PC · PS3 · PS4* · Nintendo Switch 1 und 2 · originaler Arcade-Automat · USB-MIDI"
+        }
+      ],
+      "note": "*Du musst deine eigenen PS4-Schlüssel bereitstellen."
+    },
+    "faq": {
+      "heading": "FAQ",
+      "items": [
+        {
+          "q": "Mit welchen Plattformen funktioniert sie?",
+          "a": "PC, PS3, PS4, Nintendo Switch 1 und 2 sowie der originale Arcade-Automat. Im MIDI-Modus lässt sie sich außerdem als USB-MIDI-Trommel in jeder Musiksoftware spielen. Den Modus wählst du im OLED-Menü oder im Web-Konfigurator."
+        },
+        {
+          "q": "Muss ich Software installieren?",
+          "a": "Nein. Stelle die Trommel in den Tastaturmodus (Keyboard P1 oder P2), schließe sie an und öffne den Konfigurator in einem WebSerial-fähigen Browser (Chrome, Edge, Opera, Firefox). Alles lässt sich auch über das OLED der E-Box einstellen."
+        },
+        {
+          "q": "Meine Trommel registriert Schläge, die ich nicht gemacht habe. Was tun?",
+          "a": "Verringere die Empfindlichkeit des betreffenden Pads im OLED-Menü oder im Live-Monitor des Konfigurators, wo du die Messwerte jedes Pads in Echtzeit siehst."
+        },
+        {
+          "q": "Kann ich den Onigiri-con mit einer anderen Trommel verwenden?",
+          "a": "Ja. Er ist auch mit TaikoForce- und ZhongTaiko-Trommeln kompatibel."
+        },
+        {
+          "q": "Ist das wirklich Open Source?",
+          "a": "Ja: Firmware, Hardware und dieser Konfigurator liegen auf GitHub. Du kannst dir sogar deine eigene bauen."
+        }
+      ]
+    },
+    "closing": {
+      "heading": "Hol dir deine",
+      "tagline": "Bereit für das ultimative Taiko-Erlebnis?"
+    },
+    "tour": {
+      "measure": "Ø 43 cm / 17 in",
+      "compare": {
+        "ours": "ITAIKO",
+        "original": "Originale Arcade-Trommel",
+        "steel": {
+          "ours": "3 mm",
+          "original": "≈ 2 mm"
+        },
+        "birch": {
+          "ours": "12 mm",
+          "original": "≈ 10 mm"
+        },
+        "ka": {
+          "ours": "Ka 40 mm",
+          "original": "Ka ≈ 30 mm"
+        }
+      },
+      "items": [
+        {
+          "eyebrow": "Schlagfläche",
+          "stat": "",
+          "title": "Echtes Arcade-Gummi",
+          "body": "Das Gummi ist genau dasselbe wie an den Arcade-Automaten – für ein 100 % echtes Arcade-Gefühl."
+        },
+        {
+          "eyebrow": "Unter dem Gummi",
+          "stat": "3 mm",
+          "title": "Verzinkte Stahlplatten",
+          "body": "Wir haben die Stahlplatten verbreitert, für Wirbel wie nie zuvor – und wenn wir schon dabei waren, haben wir sie auch dicker gemacht: Deine Bachi springen (fast) von allein zurück."
+        },
+        {
+          "eyebrow": "Korpus",
+          "stat": "12 mm",
+          "title": "Birkensperrholz",
+          "body": "Der Korpus von ITAIKO besteht aus 12 mm Birkensperrholz, in Italien gekauft und zugeschnitten. Steif und dicht, gibt er jeden Schlag mit einem trockenen, satten Klang zurück."
+        },
+        {
+          "eyebrow": "Ständer",
+          "stat": "",
+          "title": "Neue Ständer mit Bachi-Halter",
+          "body": "Leicht und schnell aufgebaut: einfach 4 Handschrauben fest- oder losdrehen, kein Schraubendreher nötig.",
+          "extra": "Und vorne kannst du deine Bachi ablegen!"
+        }
+      ]
+    }
+  },
+  "configure": {
+    "header": {
+      "logoAlt": "Logo"
+    },
+    "advanced": {
+      "label": "Erweitert"
+    },
+    "tabs": {
+      "config": "Konfiguration",
+      "monitor": "Live-Monitor"
+    }
+  }
+}

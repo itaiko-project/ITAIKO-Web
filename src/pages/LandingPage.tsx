@@ -1,4 +1,4 @@
-import { createRef, lazy, Suspense, useEffect, useId, useRef, useState } from "react";
+import { createRef, lazy, Suspense, useCallback, useEffect, useId, useRef, useState } from "react";
 import type { TourStop } from "@/components/DrumViewer";
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
@@ -16,12 +16,12 @@ const OnigiriRender = lazy(() => import("@/components/OnigiriRender"));
 // `compare` puts the ours-vs-original plate renders under that stop's text.
 type Material = "steel" | "birch";
 const TOUR: (Omit<TourStop, "slot"> & { compare?: Material })[] = [
-  { target: [0, 13.5, 0.5], size: 11, yaw: 28, elevation: 16, measure: true }, // head / arcade rubber, Ø arrow
+  { target: [1.1, 13.5, 0.5], size: 11.5, yaw: 28, elevation: 16, measure: true }, // head / arcade rubber, Ø arrow
   // Plates float PLATES_LIFT out along the head normal; aim between them and the head, from the other side.
   { target: [0, 15.55, 2.04], size: 12.5, yaw: -32, elevation: 20, plates: true, compare: "steel" }, // steel plates
   // Bare plywood plates (drum and onigiri faded away), head-on: straight down the head's normal, which leans back
   // 34.8°. The plywood is drawn flat, so no depth shows; its thickness is in the comparison renders.
-  { target: [0, 14.86, 1.06], size: 11.4, yaw: 0, elevation: 34.8, wood: true, compare: "birch" },
+  { target: [0, 14.86, 1.06], size: 12.4, yaw: 0, elevation: 34.8, wood: true, compare: "birch" },
   // Stand from behind; it flashes on arrival.
   { target: [0, 9.5, -1.5], size: 14.5, yaw: 150, elevation: 20, stand: true },
 ];
@@ -140,6 +140,33 @@ function FaqList({ items }: { items: Record<string, string>[] }) {
   );
 }
 
+// ?3d=off shows the static fallback, ?3d=force keeps the live scene whatever its speed (for testing and captures).
+const PREF_3D = new URLSearchParams(location.search).get("3d");
+const JUMP_FADE_MS = 200; // dots: fade out, jump, fade in (duration-200 on the faded layers matches)
+const LOAD_TIMEOUT_MS = 12000; // no drum ready by then: stop waiting and stay on the stills
+const STATIC_LAYOUT = window.matchMedia("(max-width: 767px)").matches ? "m" : "d"; // the stills come in both layouts
+
+/**
+ * A slide's 3D content as a still (public/static/<layout>-<name>.webp, made by scripts/capture-static.mjs), filling
+ * its slot. Only fetched once it is first needed; after that it stays mounted so it can fade out under the live scene.
+ */
+function StaticShot({ name, show, eager }: { name: string; show: boolean; eager?: boolean }) {
+  const [mounted, setMounted] = useState(show);
+  if (show && !mounted) setMounted(true); // adjusting state during render: no extra effect pass
+  if (!mounted) return null;
+  return (
+    <img
+      src={`static/${STATIC_LAYOUT}-${name}.webp`}
+      alt=""
+      draggable={false}
+      loading={eager ? "eager" : "lazy"}
+      decoding="async"
+      className="absolute inset-0 w-full h-full object-contain pointer-events-none select-none transition-opacity duration-500"
+      style={{ opacity: show ? 1 : 0 }}
+    />
+  );
+}
+
 function GitHubIcon({ size = 20 }: { size?: number }) {
   return (
     <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
@@ -160,8 +187,23 @@ export function LandingPage() {
   const tickerRef = useRef<HTMLDivElement>(null);
   const [isLastSection, setIsLastSection] = useState(false);
   const [drumProgress, setDrumProgress] = useState(0);
+  // "3d": the live scene. "static": WebGL is missing, broke, is too slow, or took too long to come up; every slide
+  // then shows a still of its final state (public/static) and nothing 3D runs.
+  const [mode, setMode] = useState<"3d" | "static">(PREF_3D === "off" ? "static" : "3d");
+  const fallBack = useCallback(() => setMode("static"), []);
+  // Stills → 3D: while the 3D loads (and warms up, hidden) each slot shows its still. Once ready, the 3D fades in
+  // over it, already in the final state of the slide you are on, as the still fades out: a crossfade between two
+  // matching pictures, no half-played animation on screen.
+  const showStatic = mode === "static" || drumProgress < 1;
+  useEffect(() => {
+    if (mode !== "3d" || drumProgress >= 1 || PREF_3D === "force") return;
+    const timer = setTimeout(fallBack, LOAD_TIMEOUT_MS);
+    return () => clearTimeout(timer);
+  }, [mode, drumProgress, fallBack]);
   const [activeSection, setActiveSection] = useState(0);
   const [freeScroll, setFreeScroll] = useState(false); // phones, on the last slide: no snapping, no dots
+  const [jumping, setJumping] = useState(false); // a dot jump of more than one slide is fading (see goTo)
+  const jumpRef = useRef(false);
   const [navSolid, setNavSolid] = useState(false);     // scrolled into the last slide: text passes under the navbar
   const SECTION_COUNT = TOUR.length + 3; // hero, tour, onigiri, specs+faq (+footer)
   type Item = Record<string, string>;
@@ -192,15 +234,6 @@ export function LandingPage() {
   }, []);
 
   const onigiriRatio = logo.heroH / logo.h;
-  // Browser setup + demo link, shown with the controller it configures.
-  const setupLine = (
-    <>
-      {t("landing.hero.subtitle")}.{" "}
-      <Link to="/configure?demo=true" className="text-foreground underline decoration-foreground/30 underline-offset-4 hover:decoration-foreground transition-colors">
-        {t("landing.cta.demo")}
-      </Link>
-    </>
-  );
   // Two pre-rendered close-ups under the onigiri: the JTAG-8 socket on its back, and the OLED menu.
   const onigiriShots = (
     <div className="grid grid-cols-2 gap-3 md:gap-5 w-full max-w-md">
@@ -269,26 +302,52 @@ export function LandingPage() {
     const el = scrollRef.current;
     if (!el) return;
     const phone = window.matchMedia('(max-width: 767px)');
-    let free = false, previous = el.scrollTop;
+    let free = false, previous = el.scrollTop, settle = 0;
+    let floor = 0, floorUntil = 0; // just left the last slide: for a moment, the scroll may not rise past the slide before
     const setFree = (on: boolean) => {
       free = on;
       el.style.scrollSnapType = on ? 'none' : 'y mandatory'; // now, not on the next render: the glide below needs it
       setFreeScroll(on);
     };
     const update = () => {
+      if (jumpRef.current) {
+        previous = el.scrollTop;
+        return;
+      }
+      if (performance.now() < floorUntil && el.scrollTop < floor - 1) {
+        // Whatever momentum survived (Firefox keeps flinging) stops here, at the slide before.
+        el.scrollTo({ top: floor, behavior: 'instant' });
+        previous = floor;
+        return;
+      }
       const top = el.scrollTop, up = top < previous;
       previous = top;
       const lastSlide = el.querySelector<HTMLElement>(`[data-section="${SECTION_COUNT - 1}"]`);
       if (!lastSlide) return;
+      clearTimeout(settle);
       setNavSolid(top > lastSlide.offsetTop + 8);
       if (!phone.matches) {
         if (free) setFree(false);
         return;
       }
-      if (!free && top >= lastSlide.offsetTop - 1) setFree(true);
+      // Free scroll starts only once the snap has settled on the last slide: switching snapping off mid-fling let
+      // the momentum carry on to the bottom of the page.
+      if (!free && top >= lastSlide.offsetTop - 1) {
+        clearTimeout(settle);
+        settle = window.setTimeout(() => { if (!free && phone.matches && el.scrollTop >= lastSlide.offsetTop - 1) setFree(true); }, 180);
+      }
       else if (free && up && top < lastSlide.offsetTop - 4) {
         setFree(false);
-        el.scrollTo({ top: Math.max(lastSlide.offsetTop - el.clientHeight, 0), behavior: 'smooth' });
+        // A hard upward fling carries momentum that would sail past the slide before. Freezing the scroller for a
+        // frame kills it; then glide to exactly the slide before this one.
+        const target = Math.max(lastSlide.offsetTop - el.clientHeight, 0);
+        floor = target;
+        floorUntil = performance.now() + 900;
+        el.style.overflowY = 'hidden';
+        requestAnimationFrame(() => {
+          el.style.overflowY = '';
+          el.scrollTo({ top: target, behavior: 'smooth' });
+        });
       }
     };
     el.addEventListener('scroll', update, { passive: true });
@@ -328,6 +387,29 @@ export function LandingPage() {
     };
   }, []);
 
+  // Jumping more than one slide (the dots): fade the scene and the slides out, scroll there instantly, fade back in.
+  // A smooth scroll would replay every slide in between, sped up. One slide away still glides as usual.
+  const goTo = (i: number) => {
+    const el = scrollRef.current;
+    const target = el?.querySelector<HTMLElement>(`[data-section="${i}"]`);
+    if (!el || !target || jumpRef.current) return;
+    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (Math.abs(i - activeSection) <= 1) {
+      el.scrollTo({ top: target.offsetTop, behavior: reduced ? 'instant' : 'smooth' });
+      return;
+    }
+    jumpRef.current = true;
+    setJumping(true);
+    setTimeout(() => {
+      el.scrollTo({ top: target.offsetTop, behavior: 'instant' });
+      // Two frames: the scene lands on the new slide before it is shown again.
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        jumpRef.current = false;
+        setJumping(false);
+      }));
+    }, reduced ? 0 : JUMP_FADE_MS);
+  };
+
   const goToNext = () => {
     const el = scrollRef.current;
     if (!el) return;
@@ -339,9 +421,14 @@ export function LandingPage() {
   return (
     <div className="relative h-screen flex flex-col overflow-hidden" style={{ height: '100dvh' }}>
 
-      <Suspense fallback={null}>
+      {/* Wrapper for the jump fade: the viewer sets its own opacity inline, so the fade goes on its parent. */}
+      <div className={`absolute inset-0 z-0 pointer-events-none transition-opacity duration-200 ${jumping ? 'opacity-0' : ''}`}>
+      {mode === "3d" && <Suspense fallback={null}>
         <DrumViewer
           className="absolute inset-0 z-0 pointer-events-none"
+          onFail={fallBack}
+          force={PREF_3D === "force"}
+          reveal={drumProgress >= 1}
           focusRef={drumSlotRef}
           controllerRef={controllerSlotRef}
           scrollRef={scrollRef}
@@ -351,13 +438,14 @@ export function LandingPage() {
           woodLabel={t("landing.tour.compare.ka.ours")}
           onProgress={setDrumProgress}
         />
-      </Suspense>
+      </Suspense>}
+      </div>
 
       {/* ── Navbar (transparent, floating over the hero) ── */}
       <div className="relative flex-shrink-0 h-0 z-40">
         {/* Transparent over the slides; once the last slide's text scrolls up under it, it gets a backdrop. */}
         <nav className={`absolute top-0 left-0 right-0 flex items-center justify-between px-4 md:px-8 py-3 transition-colors duration-300 ${
-          navSolid ? 'bg-background/90 backdrop-blur-sm border-b' : 'border-b border-transparent'
+          navSolid ? 'bg-background/95 border-b' : 'border-b border-transparent'
         }`}>
           <Link to="/">
             <img
@@ -390,7 +478,7 @@ export function LandingPage() {
       {/* ── Snap scroll container ── */}
       <div
         ref={scrollRef}
-        className="relative z-10 flex-1 min-h-0 overflow-y-scroll snap-scroll flex flex-col"
+        className={`relative z-10 flex-1 min-h-0 overflow-y-scroll snap-scroll flex flex-col transition-opacity duration-200 ${jumping ? 'opacity-0' : ''}`}
         style={{ scrollSnapType: freeScroll ? 'none' : 'y mandatory' }}
       >
 
@@ -398,27 +486,22 @@ export function LandingPage() {
         <div
           data-section={0}
           className="relative flex flex-col overflow-hidden"
-          style={{ scrollSnapAlign: 'start', flexShrink: 0, flexBasis: '100%' }}
+          style={{ scrollSnapAlign: 'start', scrollSnapStop: 'always', flexShrink: 0, flexBasis: '100%' }}
         >
           {/* main row — pointer-events off so drags land on the canvas; text opts back in */}
           {/* Phones: the drum fills the screen from under the navbar, "Meet ITAIKO" centred just under it, then the
               tagline (its first line leading, the second quieter) and the Buy button, all centred. */}
-          <div className="relative z-10 pointer-events-none flex flex-col justify-start md:flex-row md:items-center md:justify-center md:gap-4 md:px-16 flex-1 min-h-0 w-full pt-14 md:pt-0">
+          <div className="relative z-10 pointer-events-none flex flex-col justify-start md:flex-row md:items-center md:justify-center md:gap-4 md:px-16 flex-1 min-h-0 w-full pt-24 md:pt-0">
           {/* DRUM slot — empty; the canvas behind frames itself on this box */}
           <div ref={drumSlotRef} aria-hidden className="relative pointer-events-auto flex-1 min-h-[34vh] w-full md:flex-none md:h-[80vh] md:w-[33vw]" style={{ touchAction: 'pan-y', cursor: 'grab' }}>
-            {/* Loading bar in the drum's place until the model is on screen; the drum then fades in over it. */}
-            <div className={`absolute inset-0 flex items-center justify-center transition-opacity duration-300 ${drumProgress >= 1 ? "opacity-0" : ""}`}>
-              <div className="h-1 w-32 overflow-hidden rounded-full bg-foreground/10">
-                <div className="h-full w-full origin-left rounded-full bg-foreground/70 transition-transform duration-200" style={{ transform: `scaleX(${drumProgress})` }} />
-              </div>
-            </div>
+            {/* The still is there from the first paint; the live drum fades in over it once it is ready. */}
+            <StaticShot name="0" show={showStatic} eager />
           </div>
 
           {/* NARROW: heading, tagline, button (the bottom padding keeps it clear of the next-section chevron and the screen edge) */}
           {/* -mt-6: up into the drum box's bottom margin (the faint floor reflection), so the title sits just under it */}
-          {/* -translate-y-8 lifts just this block (text and button): a visual shift, so the drum's box, and the drum,
-              stay exactly where they are. */}
-          <div data-scroll-fade className="reveal reveal-stagger md:hidden relative flex-none flex flex-col items-center text-center px-6 -mt-6 pb-mobile-safe -translate-y-8 pointer-events-auto">
+          {/* Phones: the slide starts lower under the navbar and keeps less empty room under the button. */}
+          <div data-scroll-fade className="reveal reveal-stagger md:hidden relative flex-none flex flex-col items-center text-center px-6 -mt-14 pb-[calc(4.5rem+env(safe-area-inset-bottom,0px))] pointer-events-auto">
             <div className="flex items-center justify-center gap-1 flex-nowrap" style={{ fontSize: 'clamp(34px, 9vw, 56px)' }}>
               <h1 className="display-font leading-none whitespace-nowrap shrink-0" style={{ fontSize: '1em' }}>
                 {t("landing.hero.welcome")}
@@ -449,7 +532,7 @@ export function LandingPage() {
               <div
                 ref={tickerRef}
                 className="feature-ticker transition-opacity duration-700"
-                style={{ opacity: drumProgress >= 1 ? 1 : 0 }}
+                style={{ opacity: drumProgress >= 1 || mode === "static" ? 1 : 0 }}
                 aria-hidden
               >
                 <div className="feature-ticker-track" style={{ animationDuration: `${features.length * 4.5}s` }}>
@@ -499,14 +582,27 @@ export function LandingPage() {
               data-section={k + 1}
               // Phones: model at the top under the navbar, text below. Centred, a short text (the rubber stop) left the
               // model sitting low.
-              className={`flex flex-col justify-start pt-14 md:pt-0 md:items-center md:justify-center md:gap-12 md:px-16 overflow-hidden ${k % 2 ? 'md:flex-row' : 'md:flex-row-reverse'}`}
-              style={{ scrollSnapAlign: 'start', flexShrink: 0, flexBasis: '100%' }}
+              className={`flex flex-col justify-start pt-20 md:pt-0 md:items-center md:justify-center md:gap-12 md:px-16 overflow-hidden ${k % 2 ? 'md:flex-row' : 'md:flex-row-reverse'}`}
+              style={{ scrollSnapAlign: 'start', scrollSnapStop: 'always', flexShrink: 0, flexBasis: '100%' }}
             >
               {/* Phones: the model takes whatever height the text leaves, and the text panel sits at the bottom at its
                   own height, down to the screen's edge. Nothing in it gets cut off, and none of the rest of the scene
                   (onigiri, stand) peeks out below it. */}
-              <div ref={stop.slot} aria-hidden className="flex-1 min-h-[26vh] w-full md:flex-none md:h-[78vh] md:w-[44vw]" />
-              <div data-scroll-fade className="reveal reveal-stagger relative z-10 flex-none pl-6 pr-10 pt-5 pb-mobile-safe bg-background/85 backdrop-blur-sm md:bg-transparent md:backdrop-blur-none md:p-0 md:max-w-[30vw]">
+              <div ref={stop.slot} aria-hidden className="relative flex-1 min-h-[26vh] w-full md:flex-none md:h-[78vh] md:w-[44vw]">
+                <StaticShot name={String(k + 1)} show={showStatic} />
+                {/* Static mode: the stand blinks in 2D, its lit twin fading over the plain still twice on arrival. */}
+                {stop.stand && mode === "static" && (
+                  <img
+                    src={`static/${STATIC_LAYOUT}-${k + 1}-flash.webp`}
+                    alt=""
+                    draggable={false}
+                    loading="lazy"
+                    decoding="async"
+                    className={`static-flash absolute inset-0 w-full h-full object-contain pointer-events-none select-none ${activeSection === k + 1 ? "is-on" : ""}`}
+                  />
+                )}
+              </div>
+              <div data-scroll-fade className="reveal reveal-stagger relative z-10 flex-none pl-6 pr-10 pt-5 pb-mobile-safe bg-background/90 md:bg-transparent md:p-0 md:max-w-[30vw]">
                 <p className="font-mono text-xs md:text-sm text-brand-ink">{item.eyebrow}</p>
                 {/* The big figure; on phones the comparison below already says it, and the room goes to the model. */}
                 {item.stat && <div className={`display-font leading-none mt-3 tabular-nums ${stop.compare ? 'hidden md:block' : ''}`} style={{ fontSize: 'clamp(48px, 7vw, 96px)' }}>{item.stat}</div>}
@@ -545,8 +641,8 @@ export function LandingPage() {
           data-section={tour.length + 1}
           // Phones, in the tour slides' style: the onigiri centred in the space under the navbar with its title just
           // above it, and the text panel at the bottom on the same blurred backdrop.
-          className="flex flex-col justify-start pt-14 md:pt-0 md:flex-row md:items-center md:justify-center md:gap-4 md:px-16 overflow-hidden"
-          style={{ scrollSnapAlign: 'start', flexShrink: 0, flexBasis: '100%' }}
+          className="flex flex-col justify-start pt-24 md:pt-0 md:flex-row md:items-center md:justify-center md:gap-4 md:px-16 overflow-hidden"
+          style={{ scrollSnapAlign: 'start', scrollSnapStop: 'always', flexShrink: 0, flexBasis: '100%' }}
         >
           {/* Title + onigiri, centred together. md:contents: on wide screens this wrapper drops out of the layout and
               the slot is the row's left column again. */}
@@ -557,17 +653,18 @@ export function LandingPage() {
             </h2>
             {/* The shared scene flies into the controller already beside the drum. The slot has the onigiri's own
                 proportions, so it fills the box and the title sits right on it. */}
-            <div ref={controllerSlotRef} aria-hidden className="w-full flex-1 min-h-0 max-h-[83vw] md:flex-none md:max-h-none md:h-[80vh] md:w-[33vw]" />
+            <div ref={controllerSlotRef} aria-hidden className="relative w-full flex-1 min-h-0 max-h-[100vw] md:flex-none md:max-h-none md:h-[80vh] md:w-[33vw]">
+              <StaticShot name={String(tour.length + 1)} show={showStatic} />
+            </div>
           </div>
 
           {/* NARROW: text panel with the two close-ups. No configurator line (phones have no WebSerial) and no Buy
               button here: it is in the navbar, the hero and the closing panel. */}
-          <div data-scroll-fade className="reveal reveal-stagger md:hidden relative z-10 flex-none flex flex-col items-center text-center px-10 pt-5 pb-mobile-safe bg-background/85 backdrop-blur-sm">
-            <p className="serif-body text-base text-muted-foreground leading-relaxed">
-              {t("landing.onigiri1.tagline1")}<br />
-              {t("landing.onigiri1.tagline2")}
-            </p>
-            <div className="mt-4">{onigiriShots}</div>
+          {/* Kept compact, so the onigiri above gets as much of the screen as it can. */}
+          <div data-scroll-fade className="reveal reveal-stagger md:hidden relative z-10 flex-none flex flex-col items-center text-center px-8 pt-3 pb-[calc(4.5rem+env(safe-area-inset-bottom,0px))] bg-background/90">
+            <p className="serif-body text-base text-muted-foreground leading-snug">{t("landing.onigiri1.tagline1")}</p>
+            <p className="serif-body text-sm italic text-muted-foreground/80 leading-snug mt-1">{t("landing.onigiri1.tagline2")}</p>
+            <div className="mt-3">{onigiriShots}</div>
           </div>
 
           {/* WIDE: text column */}
@@ -578,27 +675,28 @@ export function LandingPage() {
                 <span style={{ fontSize: `${onigiriRatio}em` }}>{t("landing.onigiri1.name")}</span>
               </h2>
             </div>
-            <p className="serif-body text-2xl text-muted-foreground leading-snug mt-3">
+            <p className="serif-body text-xl text-muted-foreground leading-snug mt-3" style={{ maxWidth: 'min(580px, 55vw)' }}>
               {t("landing.onigiri1.tagline1")}
             </p>
-            <p className="serif-body text-xl text-muted-foreground leading-relaxed mt-2" style={{ maxWidth: 'min(580px, 55vw)' }}>
+            <p className="serif-body text-base italic text-muted-foreground/80 leading-relaxed mt-2" style={{ maxWidth: 'min(580px, 55vw)' }}>
               {t("landing.onigiri1.tagline2")}
             </p>
-            <p className="serif-body text-xl text-muted-foreground leading-relaxed mt-2" style={{ maxWidth: 'min(580px, 55vw)' }}>
-              {setupLine}
-            </p>
             <div className="mt-5">{onigiriShots}</div>
-            <div className="mt-5 flex gap-3">
+            <div className="mt-5 flex flex-wrap gap-3">
               <Button asChild size="lg" className="bg-brand-fill hover:bg-brand-fill-hover text-white border-0">
                 <a href="#"><ShoppingCart size={16} strokeWidth={1.5} aria-hidden />{t("landing.cta.buy")}</a>
+              </Button>
+              {/* The configurator in demo mode, no drum needed. Same outlined button as "Configure your drum". */}
+              <Button asChild size="lg" variant="outline">
+                <Link to="/configure?demo=true"><Wrench size={16} strokeWidth={1.5} aria-hidden />{t("landing.cta.demo")}</Link>
               </Button>
             </div>
           </div>
         </div>
 
         {/* ── Section 6: Specs + FAQ side by side, closing CTA + footer ── */}
-        <section data-section={tour.length + 2} className="flex flex-col" style={{ scrollSnapAlign: 'start', flexShrink: 0, minHeight: '100%' }}>
-          <div className="flex-1 flex flex-col justify-center px-6 md:px-16 pt-20 pb-16">
+        <section data-section={tour.length + 2} className="flex flex-col" style={{ scrollSnapAlign: 'start', scrollSnapStop: 'always', flexShrink: 0, minHeight: '100%' }}>
+          <div className="flex-1 flex flex-col justify-center px-6 md:px-16 pt-28 md:pt-32 pb-16">
             <div className="mx-auto max-w-6xl w-full">
               <div className="grid gap-16 md:grid-cols-2 md:gap-16">
                 <div>
@@ -611,6 +709,7 @@ export function LandingPage() {
                       </div>
                     ))}
                   </dl>
+                  <p className="reveal mt-3 font-mono text-xs text-muted-foreground">{t("landing.specSheet.note")}</p>
                 </div>
                 <div>
                   <h2 className="reveal display-font leading-none" style={{ fontSize: 'clamp(32px, 4vw, 48px)' }}>{t("landing.faq.heading")}</h2>
@@ -619,9 +718,11 @@ export function LandingPage() {
               </div>
               {/* Closing CTA, one panel: the turning drum on the left, the question, then "Get your ITAIKO" with a
                   big Buy button beside it (stacked below lg, where the two don't fit side by side). */}
-              <div className="reveal reveal-stagger mt-16 md:mt-20 rounded-2xl border bg-foreground/[0.03] px-5 py-7 md:pl-6 md:pr-12 md:py-6 flex flex-col md:flex-row items-center gap-4 md:gap-8">
+              <div className="reveal reveal-stagger mt-6 md:mt-10 rounded-2xl border bg-foreground/[0.03] px-5 py-7 md:pl-6 md:pr-12 md:py-6 flex flex-col md:flex-row items-center gap-4 md:gap-8">
                 <div className="flex-shrink-0 w-44 h-44 md:w-64 md:h-64">
-                  <Suspense fallback={null}><MiniDrum className="w-full h-full" /></Suspense>
+                  {mode === "3d"
+                    ? <Suspense fallback={null}><MiniDrum className="w-full h-full" /></Suspense>
+                    : <img src="static/mini.webp" alt="" loading="lazy" decoding="async" draggable={false} className="w-full h-full object-contain" />}
                 </div>
                 <div className="flex-1 min-w-0 w-full flex flex-col items-center md:items-start text-center md:text-left">
                   <p className="serif-body text-xl md:text-3xl text-muted-foreground leading-snug">{t("landing.closing.tagline")}</p>
@@ -674,7 +775,7 @@ export function LandingPage() {
       <div className="relative flex-shrink-0 h-0 z-40">
         <div
           className={`absolute bottom-0 left-0 right-0 pointer-events-none transition-opacity duration-500 h-[64px] md:h-[120px] ${
-            isLastSection ? 'opacity-0' : 'opacity-100'
+            isLastSection || freeScroll ? 'opacity-0' : 'opacity-100'
           }`}
           style={{
             background: 'linear-gradient(to bottom, transparent 0%, color-mix(in oklch, var(--background) 85%, transparent) 100%)',
@@ -683,7 +784,7 @@ export function LandingPage() {
         <button
           onClick={goToNext}
           className={`absolute bottom-[calc(0.75rem+env(safe-area-inset-bottom))] left-1/2 -translate-x-1/2 z-10 text-foreground/70 hover:text-foreground transition-[color,opacity] duration-300 ${
-            isLastSection ? 'opacity-0 pointer-events-none' : 'opacity-100 pointer-events-auto'
+            isLastSection || freeScroll ? 'opacity-0 pointer-events-none' : 'opacity-100 pointer-events-auto'
           }`}
           aria-label={t("landing.nav.next")}
         >
@@ -702,9 +803,7 @@ export function LandingPage() {
         {Array.from({ length: SECTION_COUNT }).map((_, i) => (
           <button
             key={i}
-            onClick={() => {
-              scrollRef.current?.querySelector(`[data-section="${i}"]`)?.scrollIntoView({ behavior: 'smooth' });
-            }}
+            onClick={() => goTo(i)}
             aria-label={`Section ${i + 1}`}
             className={`w-2.5 h-2.5 rounded-full transition-colors duration-150 ${
               activeSection === i ? 'bg-foreground' : 'bg-foreground/30 hover:bg-foreground/60'

@@ -251,6 +251,32 @@
   .onigiri-hint { transition: none; }
 }
 
+/* Static fallback: the stand's blink, done in 2D. The lit still fades over the plain one twice when its slide
+   becomes the active one (LandingPage toggles .is-on). */
+.static-flash { opacity: 0; }
+.static-flash.is-on { animation: static-flash 1s ease-in-out 0.35s 1; }
+@keyframes static-flash {
+  0%, 50%, 100% { opacity: 0; }
+  25%, 75% { opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .static-flash.is-on { animation: none; }
+}
+
+/* The onigiri's OLED as a crisp 2D layer over the 3D screen (positioned per frame by DrumViewer) */
+.oled-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 128px;
+  height: 64px;
+  transform-origin: 0 0;
+  image-rendering: crisp-edges; /* older Firefox */
+  image-rendering: pixelated;
+  pointer-events: none;
+  opacity: 0;
+}
+
 /* The site's measuring style (the drum head's Ø arrow, the plywood dimensions, the plate renders):
    solid brand-blue line with filled arrowheads and end ticks, label in a blue pill in the display face.
    Geometry from dimension.ts; positioned per frame by DrumViewer, or by PlateRender. */
@@ -288,19 +314,31 @@
 .dims-small .dim-line { stroke-width: 2; }
 .dims-small .dim-pill { font-size: 13px; padding: 4px 7px; border-radius: 3px; }
 
-/* Hero feature ticker: starts at the text column, clear of the drum, and fades in over its first 88px;
-   --ticker-end (set from LandingPage) is the window's right edge, where it fades out again. */
+/* Hero feature ticker: starts at the text column, clear of the drum, and runs to the window's right edge
+   (--ticker-end, set from LandingPage). Its ends fade into the page through two gradient overlays, not a mask: an
+   animated transform under mask-image is repainted on the main thread every frame (badly so in Firefox), while this
+   leaves the track a plain compositor animation. */
 .feature-ticker {
-  width: 100vw;
+  position: relative;
+  width: var(--ticker-end, 100vw);
   overflow: hidden;
-  --ticker-mask: linear-gradient(to right, transparent 0, #000 88px, #000 calc(var(--ticker-end, 100vw) - 6vw), transparent var(--ticker-end, 100vw));
-  -webkit-mask-image: var(--ticker-mask);
-  mask-image: var(--ticker-mask);
 }
+.feature-ticker::before,
+.feature-ticker::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  z-index: 1;
+  pointer-events: none;
+}
+.feature-ticker::before { left: 0; width: 88px; background: linear-gradient(to right, var(--background), transparent); }
+.feature-ticker::after { right: 0; width: 6vw; background: linear-gradient(to left, var(--background), transparent); }
 .feature-ticker-track {
   display: flex;
   width: max-content;
   animation: feature-ticker 30s linear infinite;
+  will-change: transform;
 }
 /* Three identical copies in the track; sliding by one copy (a third) lands exactly where it started */
 @keyframes feature-ticker {

@@ -3,6 +3,25 @@ import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 
 // Shared by the drum scene and the plate comparison renders.
 
+/** Phones: narrow screens get the lighter model, a lower pixel ratio and a cheaper floor reflection. */
+export const PHONE = typeof window !== "undefined" && window.matchMedia("(max-width: 767px)").matches;
+/**
+ * The drum model. Phones get the variant with 1024 px textures (scripts/glb-mobile.cjs): 1 MB less to download and a
+ * quarter of the texture memory. index.html preloads the same file by the same media query.
+ */
+export const MODEL_URL = PHONE ? "iTaiko.mobile.glb" : "iTaiko.webp.glb";
+export const MODEL_BYTES = PHONE ? 1_574_424 : 2_569_528; // progress fallback when the server sends no Content-Length
+/** Device pixel ratio the 3D canvases draw at: capped, since fill rate is what makes phones (and Firefox) stutter. */
+export const PIXEL_RATIO = typeof window === "undefined" ? 1 : Math.min(window.devicePixelRatio, PHONE ? 1.5 : 1.75);
+
+let resolveSceneReady!: () => void;
+/** Resolves once the main drum scene is on screen (or after 10 s): secondary 3D work waits for it. */
+export const sceneReady: Promise<void> = new Promise((resolve) => {
+  resolveSceneReady = resolve;
+  if (typeof window !== "undefined") setTimeout(resolve, 10000);
+});
+export const markSceneReady = () => resolveSceneReady();
+
 /** Plywood Don + Ka halves, exported from the assembly 3MF by scripts/plywood-glb.cjs: mm, head frame, front at z = 0. */
 export const PLYWOOD_URL = "plywood.glb";
 /** The plywood face as built (mm): Don disc, Ka ring, and board thickness. */
