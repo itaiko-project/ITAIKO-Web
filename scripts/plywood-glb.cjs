@@ -1,6 +1,6 @@
-// Usage: unzip the assembly 3MF, then
+// Usage: unzip assets/plywood-plates.3mf (the plywood plates from the drum assembly), then
 //   node scripts/plywood-glb.cjs <unzipped>/3D/3dmodel.model public/plywood.glb
-// Object ids 25/27 (Don halves) and 29/31 (Ka halves) are the plywood plates in "Assembly completa v8.3mf".
+// Object ids 25/27 are the Don halves, 29/31 the Ka halves.
 // Plywood Don + Ka halves (objects 25, 27, 29, 31) from the assembly 3MF → a GLB in the head's own frame, in mm:
 // x across the face, y up along it, z out of the front face (z = 0 front, -12 back), origin at the Don's centre.
 const fs=require("fs");const [,,model,out]=process.argv;const x=fs.readFileSync(model,"utf8");
