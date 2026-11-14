@@ -11,10 +11,6 @@ import {
 const LANGUAGES = [
   { code: "en", label: "English" },
   { code: "it", label: "Italiano" },
-  { code: "es", label: "Español" },
-  { code: "fr", label: "Français" },
-  { code: "de", label: "Deutsch" },
-  { code: "pt", label: "Português" },
   { code: "zh-TW", label: "繁體中文" },
 ];
 

@@ -1198,26 +1198,11 @@ function lights(radius: number): THREE.Object3D[] {
  * Its own little renderer: loads and compiles the model at page load when the browser is idle, and draws (turns)
  * only while it is on screen.
  */
-let parallelCompile: boolean | undefined;
-/** Whether this browser compiles shaders off the main thread (KHR_parallel_shader_compile). Checked once. */
-function hasParallelCompile() {
-  if (parallelCompile === undefined) {
-    const gl = document.createElement("canvas").getContext("webgl2");
-    parallelCompile = !!gl?.getExtension("KHR_parallel_shader_compile");
-    gl?.getExtension("WEBGL_lose_context")?.loseContext();
-  }
-  return parallelCompile;
-}
-
 export function MiniDrum({ className }: { className?: string }) {
   const hostRef = useRef<HTMLDivElement>(null);
   const [ready, setReady] = useState(false);
-  // A second live scene means a second set of shaders to compile. Where that blocks the page (no parallel
-  // compilation: Firefox) the small drum is its still image instead.
-  const [still] = useState(() => !hasParallelCompile());
 
   useEffect(() => {
-    if (still) return;
     const host = hostRef.current!;
     let renderer: THREE.WebGLRenderer;
     try {
@@ -1228,7 +1213,7 @@ export function MiniDrum({ className }: { className?: string }) {
     renderer.setPixelRatio(PIXEL_RATIO);
     renderer.toneMapping = THREE.NeutralToneMapping;
     renderer.toneMappingExposure = EXPOSURE;
-    renderer.domElement.style.cssText = "width:100%;height:100%;display:block";
+    renderer.domElement.style.cssText = "position:absolute;inset:0;width:100%;height:100%;display:block;opacity:0;transition:opacity 500ms ease";
     host.appendChild(renderer.domElement);
 
     const scene = new THREE.Scene();
@@ -1238,10 +1223,10 @@ export function MiniDrum({ className }: { className?: string }) {
 
     let drum: THREE.Object3D | null = null;
     let radius = 1;
-    let onScreen = false, loading = false, disposed = false, frame = 0;
+    let onScreen = false, loading = false, disposed = false, compiled = false, frame = 0;
     let previousTime = performance.now();
 
-    const draw = () => { if (drum) renderer.render(scene, camera); };
+    const draw = () => { if (drum && compiled) renderer.render(scene, camera); };
     const resize = () => {
       const { clientWidth: w, clientHeight: h } = host;
       if (!w || !h) return;
@@ -1260,7 +1245,7 @@ export function MiniDrum({ className }: { className?: string }) {
     };
     const load = () => {
       loading = true;
-      Promise.all([new GLTFLoader().loadAsync(MODEL_URL), environment(renderer)]).then(([gltf, env]) => {
+      Promise.all([new GLTFLoader().loadAsync(MODEL_URL), environment(renderer)]).then(async ([gltf, env]) => {
         if (disposed) { env.dispose(); return disposeModel(gltf.scene); }
         scene.environment = env;
         for (const name of ["Controller_Low", "Cavo_Low"]) {
@@ -1276,9 +1261,15 @@ export function MiniDrum({ className }: { className?: string }) {
         drum.rotation.y = -0.5; // three-quarter view, the rope and stand both read
         scene.add(drum, ...lights(radius));
         resize();
-        renderer.compile(scene, camera);
+        // Parallel compilation speeds up supported browsers; it is not required for 3D.
+        await renderer.compileAsync(scene, camera);
+        if (disposed) return;
+        compiled = true;
         draw();
+        renderer.domElement.style.opacity = "1";
         setReady(true);
+      }).catch((error: unknown) => {
+        if (!disposed) console.warn("Closing drum unavailable, keeping its still image:", error);
       });
     };
 
@@ -1286,7 +1277,7 @@ export function MiniDrum({ className }: { className?: string }) {
       frame = requestAnimationFrame(tick);
       const dt = Math.min((time - previousTime) / 1000, 0.05);
       previousTime = time;
-      if (!onScreen || !drum || reducedMotion.matches) return;
+      if (!onScreen || !drum || !compiled || reducedMotion.matches) return;
       drum.rotation.y += dt * 0.5;
       draw();
     };
@@ -1312,10 +1303,15 @@ export function MiniDrum({ className }: { className?: string }) {
       renderer.dispose();
       renderer.domElement.remove();
     };
-  }, [still]);
+  }, []);
 
-  if (still) return <img src="static/mini.webp" alt="" loading="lazy" decoding="async" draggable={false} className={`${className ?? ""} object-contain`} />;
-  return <div ref={hostRef} aria-hidden className={className} style={{ opacity: ready ? 1 : 0, transition: "opacity 500ms ease" }} />;
+  return (
+    <div ref={hostRef} aria-hidden className={className} style={{ position: "relative" }}>
+      <img src="static/mini.webp" alt="" loading="lazy" decoding="async" draggable={false}
+        className="absolute inset-0 w-full h-full object-contain"
+        style={{ opacity: ready ? 0 : 1, transition: "opacity 500ms ease" }} />
+    </div>
+  );
 }
 
 /** Patches the Reflector shader: blur the mirror with distance and fade it into the page. */

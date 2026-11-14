@@ -57,7 +57,10 @@ export const NumberInput = React.forwardRef<HTMLInputElement, NumberInputProps>(
       onValueChange?.(newValue)
     }
 
-    const handleChange = (values: { floatValue: number | undefined }) => {
+    const handleChange: NonNullable<NumericFormatProps["onValueChange"]> = (values, sourceInfo) => {
+      // Slider/config updates also trigger NumericFormat's callback. Echoing those
+      // back to the parent can overwrite newer values and create extra commits.
+      if (sourceInfo.source !== "event") return
       const newValue = values.floatValue
       setInternalValue(newValue)
       onValueChange?.(newValue)
