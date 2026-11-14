@@ -4,9 +4,10 @@ import { useDevice } from "@/context/DeviceContext";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import type { KeyMappings } from "@/types";
-import { hidToKeyName, browserKeyToHid } from "@/lib/hid-keycodes";
+import { browserKeyToHid } from "@/lib/hid-keycodes";
 import { HelpButton } from "@/components/ui/help-modal";
 import { RotateCcw } from "lucide-react";
+import { KeyGlyph } from "./KeyGlyph";
 
 // Map SVG button IDs to KeyMappings structure
 const BUTTON_MAPPINGS: Record<string, { category: keyof KeyMappings; key: string }> = {
@@ -31,6 +32,29 @@ const BUTTON_MAPPINGS: Record<string, { category: keyof KeyMappings; key: string
   "Tab": { category: "controller", key: "select" },
 };
 
+// Center and size (smaller side) of each mappable button, in % of the SVG's viewBox.
+// The overlay is as wide as the SVG, so these % double as cqw. Geometry is static, measure once.
+function measureButtons(svg: SVGSVGElement) {
+  const vb = svg.viewBox.baseVal;
+  const svgCTM = svg.getScreenCTM();
+  const out: Record<string, { x: number; y: number; size: number }> = {};
+  for (const id of Object.keys(BUTTON_MAPPINGS)) {
+    const el = svg.querySelector(`[id="${id}"]`);
+    const elCTM = el instanceof SVGGraphicsElement ? el.getScreenCTM() : null;
+    if (!el || !elCTM || !svgCTM) continue;
+    const b = (el as SVGGraphicsElement).getBBox();
+    const pt = new DOMPoint(b.x + b.width / 2, b.y + b.height / 2)
+      .matrixTransform(elCTM).matrixTransform(svgCTM.inverse());
+    const scale = elCTM.a / svgCTM.a; // buttons are only translated/uniformly scaled
+    out[id] = {
+      x: ((pt.x - vb.x) / vb.width) * 100,
+      y: ((pt.y - vb.y) / vb.height) * 100,
+      size: (Math.min(b.width, b.height) * scale / vb.width) * 100,
+    };
+  }
+  return out;
+}
+
 export function InteractiveKeyMapping() {
   const { t } = useTranslation("config");
   const { config, updateKeyMapping, isConnected, resetKeyMappings } = useDevice();
@@ -39,6 +63,8 @@ export function InteractiveKeyMapping() {
   const [svgLoaded, setSvgLoaded] = useState(false);
   const [selectedButton, setSelectedButton] = useState<string | null>(null);
   const [isListening, setIsListening] = useState(false);
+  // Button centers as % of the board, for the keycap overlay
+  const [labelPos, setLabelPos] = useState<Record<string, { x: number; y: number; size: number }>>({});
   const svgContainerRef = useRef<HTMLDivElement>(null);
   const cleanupRef = useRef<(() => void) | null>(null);
 
@@ -67,7 +93,8 @@ export function InteractiveKeyMapping() {
             svg.setAttribute("height", "100%");
             svg.style.width = "100%";
             svg.style.height = "auto";
-            svg.style.maxHeight = "600px"; // Prevent it from becoming too tall
+            svg.style.display = "block";
+            setLabelPos(measureButtons(svg));
           }
 
           setSvgLoaded(true);
@@ -188,18 +215,9 @@ export function InteractiveKeyMapping() {
     const svg = svgContainerRef.current.querySelector("svg");
     if (!svg) return;
 
-    // Clear existing labels
-    const existingLabels = svg.querySelectorAll(".key-mapping-label");
-    existingLabels.forEach(el => el.remove());
-
     Object.keys(BUTTON_MAPPINGS).forEach((buttonId) => {
-      let element = svg.querySelector(`[id="${buttonId}"]`);
+      const element = svg.querySelector(`[id="${buttonId}"]`);
       if (!element) return;
-
-      let fill = "#22c55e"; // Green for mappable buttons
-      if (selectedButton === buttonId && isListening) {
-        fill = "#3b82f6"; // Blue when listening
-      }
 
       const tagName = element.tagName.toLowerCase();
       const shapeElement = tagName === "g"
@@ -207,57 +225,12 @@ export function InteractiveKeyMapping() {
         : element;
 
       if (shapeElement) {
-        (shapeElement as SVGElement).style.fill = fill;
+        (shapeElement as SVGElement).style.fill = "var(--brand-fill)";
+        shapeElement.classList.toggle("key-listening", isListening && selectedButton === buttonId);
       }
 
-      // --- Add Label ---
-      const value = getButtonValue(buttonId);
-      const keyName = value !== null ? hidToKeyName(value) : "";
-
-      if (keyName && element instanceof SVGGraphicsElement) {
-        try {
-          // Get BBox in local element coordinates
-          const bbox = element.getBBox();
-
-          // Calculate center in local coordinates
-          const centerX = bbox.x + bbox.width / 2;
-          const centerY = bbox.y + bbox.height / 2;
-
-          // Convert local center to global SVG coordinates
-          // We must transform to screen space then back to SVG root user space
-          // to account for viewBox, scaling, and nested transforms correctly.
-          const pt = (svg as SVGSVGElement).createSVGPoint();
-          pt.x = centerX;
-          pt.y = centerY;
-
-          const elemScreenCTM = element.getScreenCTM();
-          const svgScreenCTM = (svg as SVGSVGElement).getScreenCTM();
-
-          let globalPt = pt;
-          if (elemScreenCTM && svgScreenCTM) {
-            globalPt = pt.matrixTransform(elemScreenCTM).matrixTransform(svgScreenCTM.inverse());
-          }
-
-          const textElement = document.createElementNS("http://www.w3.org/2000/svg", "text");
-          textElement.textContent = keyName;
-          textElement.setAttribute("x", globalPt.x.toString());
-          textElement.setAttribute("y", globalPt.y.toString());
-          textElement.setAttribute("text-anchor", "middle");
-          textElement.setAttribute("dominant-baseline", "middle");
-          textElement.setAttribute("fill", "white");
-          textElement.setAttribute("font-size", "24");
-          textElement.setAttribute("font-weight", "bold");
-          textElement.setAttribute("pointer-events", "none");
-          textElement.setAttribute("class", "key-mapping-label");
-          textElement.style.textShadow = "0px 1px 2px rgba(0,0,0,0.5)";
-
-          svg.appendChild(textElement);
-        } catch (e) {
-          console.error("Could not calculate position for label:", buttonId, e);
-        }
-      }
     });
-  }, [svgLoaded, selectedButton, isListening, getButtonValue]); // Added getButtonValue dependency
+  }, [svgLoaded, selectedButton, isListening]);
 
   if (!keyMappings) {
     return null;
@@ -281,35 +254,40 @@ export function InteractiveKeyMapping() {
         </Button>
       </div>
 
-      {isListening && selectedButton && (
-        <div className="bg-blue-50 border border-blue-200 p-3 rounded-md">
-          <p className="text-sm text-blue-800 text-center font-medium animate-pulse">
-            {t("interactiveKeyMapping.listeningPrompt", { buttonLabel: selectedButton.replace(/--/g, " (").replace(/-/g, " ").replace(/  /g, " ") })}
-          </p>
-        </div>
-      )}
-
       <Card>
         <CardHeader>
           <CardTitle className="text-base">{t("interactiveKeyMapping.controllerBoard")}</CardTitle>
           <CardDescription>{t("interactiveKeyMapping.controllerBoardDescription")}</CardDescription>
         </CardHeader>
         <CardContent>
-          <p className="text-sm text-muted-foreground mb-4">
-          </p>
-
-          <div className="flex justify-center w-full">
+          <div className="relative w-full max-w-[600px] mx-auto @container">
             {/* Manually managed SVG container */}
-            <div
-              ref={svgContainerRef}
-              className="w-full"
-            />
+            <div ref={svgContainerRef} />
+            {/* Glyphs printed on the SVG buttons; clicks pass through to them */}
+            {Object.entries(labelPos).map(([id, { x, y, size }]) => {
+              const value = getButtonValue(id);
+              if (!value || (isListening && selectedButton === id)) return null;
+              return (
+                <span
+                  key={id}
+                  className="absolute pointer-events-none -translate-x-1/2 -translate-y-1/2 flex items-center justify-center text-white font-semibold leading-none whitespace-nowrap"
+                  style={{ left: `${x}%`, top: `${y}%`, fontSize: `${size * 0.5}cqw` }}
+                >
+                  <KeyGlyph code={value} className="size-[1.1em]" fit />
+                </span>
+              );
+            })}
           </div>
 
-          {/* Legend */}
-          <div className="mt-4 flex flex-wrap gap-4 justify-center text-sm">
+          {/* Listening prompt takes the legend's place, so nothing below moves */}
+          {/* Both share one grid cell: the row keeps the taller height either way */}
+          <div className="mt-4 grid [&>*]:col-start-1 [&>*]:row-start-1">
+          <p className={`self-center text-sm text-brand-ink text-center font-medium ${isListening && selectedButton ? "" : "invisible"}`}>
+            {selectedButton && t("interactiveKeyMapping.listeningPrompt", { buttonLabel: selectedButton.replace(/--/g, " (").replace(/-/g, " ").replace(/ {2}/g, " ") })}
+          </p>
+          <div className={`flex flex-wrap gap-4 justify-center text-sm ${isListening && selectedButton ? "invisible" : ""}`}>
             <div className="flex items-center gap-2">
-              <div className="w-4 h-4 rounded" style={{ backgroundColor: "#22c55e" }} />
+              <div className="w-4 h-4 rounded bg-brand-fill" />
               <span>{t("interactiveKeyMapping.legendMappable")}</span>
             </div>
             <div className="flex items-center gap-2">
@@ -317,9 +295,10 @@ export function InteractiveKeyMapping() {
               <span>{t("interactiveKeyMapping.legendReserved")}</span>
             </div>
             <div className="flex items-center gap-2">
-              <div className="w-4 h-4 rounded" style={{ backgroundColor: "#3b82f6" }} />
+              <svg className="w-4 h-4" aria-hidden><rect width="16" height="16" rx="4" fill="var(--brand-fill)" className="key-listening" /></svg>
               <span>{t("interactiveKeyMapping.legendListening")}</span>
             </div>
+          </div>
           </div>
 
         </CardContent>

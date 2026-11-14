@@ -249,6 +249,17 @@ export function hidToKeyName(hid: number): string {
   return HID_TO_KEY_NAME[hid] || `0x${hid.toString(16).toUpperCase().padStart(2, "0")}`;
 }
 
+// Keycap-short names for the long ones
+const SHORT_KEY_NAMES: Record<string, string> = {
+  Escape: "Esc", Delete: "Del", Insert: "Ins", "Page Up": "PgUp", "Page Down": "PgDn",
+  "Print Screen": "PrtSc", "Scroll Lock": "ScrLk", "Num Lock": "Num", "Caps Lock": "Caps", Unassigned: "",
+};
+
+export function shortKeyName(hid: number): string {
+  const name = hidToKeyName(hid);
+  return SHORT_KEY_NAMES[name] ?? name;
+}
+
 /**
  * Convert browser KeyboardEvent to HID keycode
  */

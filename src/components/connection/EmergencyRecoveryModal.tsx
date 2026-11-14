@@ -248,11 +248,11 @@ export function EmergencyRecoveryModal({ open, onOpenChange }: EmergencyRecovery
       case 'ready_to_nuke':
         return (
           <div className="space-y-4">
-            <div className="bg-amber-50 border border-amber-200 p-4 rounded-md">
-              <p className="text-sm text-amber-800 font-medium">
+            <div className="bg-amber-500/10 border border-amber-500/30 p-4 rounded-xl">
+              <p className="text-sm text-foreground font-medium">
                 {t("emergencyRecovery.steps.readyToNuke.title")}
               </p>
-              <p className="text-sm text-amber-700 mt-1">
+              <p className="text-sm text-muted-foreground mt-1">
                 {t("emergencyRecovery.steps.readyToNuke.description")}
               </p>
             </div>
@@ -274,12 +274,12 @@ export function EmergencyRecoveryModal({ open, onOpenChange }: EmergencyRecovery
       case 'confirm_nuke':
         return (
           <div className="space-y-4">
-            <div className="bg-amber-50 border border-amber-200 p-4 rounded-md">
-              <div className="flex items-center gap-2 text-amber-800 mb-2">
+            <div className="bg-amber-500/10 border border-amber-500/30 p-4 rounded-xl">
+              <div className="flex items-center gap-2 text-foreground mb-2">
                 <Download className="h-5 w-5" />
                 <span className="font-semibold">{t("emergencyRecovery.steps.confirmNuke.fileDownloaded")}</span>
               </div>
-              <div className="text-sm text-amber-700 space-y-2">
+              <div className="text-sm text-muted-foreground space-y-2">
                 <p>
                   <Trans
                     i18nKey="emergencyRecovery.steps.confirmNuke.intro"
@@ -318,11 +318,11 @@ export function EmergencyRecoveryModal({ open, onOpenChange }: EmergencyRecovery
       case 'ready_to_flash':
         return (
           <div className="space-y-4">
-            <div className="bg-green-50 border border-green-200 p-4 rounded-md">
-              <p className="text-sm text-green-800 font-medium">
+            <div className="bg-green-500/10 border border-green-500/30 p-4 rounded-xl">
+              <p className="text-sm text-foreground font-medium">
                 {t("emergencyRecovery.steps.readyToFlash.title")}
               </p>
-              <p className="text-sm text-green-700 mt-1">
+              <p className="text-sm text-muted-foreground mt-1">
                 {t("emergencyRecovery.steps.readyToFlash.description")}
               </p>
             </div>
@@ -344,12 +344,12 @@ export function EmergencyRecoveryModal({ open, onOpenChange }: EmergencyRecovery
       case 'confirm_flash':
         return (
           <div className="space-y-4">
-            <div className="bg-amber-50 border border-amber-200 p-4 rounded-md">
-              <div className="flex items-center gap-2 text-amber-800 mb-2">
+            <div className="bg-amber-500/10 border border-amber-500/30 p-4 rounded-xl">
+              <div className="flex items-center gap-2 text-foreground mb-2">
                 <Download className="h-5 w-5" />
                 <span className="font-semibold">{t("emergencyRecovery.steps.confirmFlash.fileDownloaded")}</span>
               </div>
-              <div className="text-sm text-amber-700 space-y-2">
+              <div className="text-sm text-muted-foreground space-y-2">
                 <p>{t("emergencyRecovery.steps.confirmFlash.intro")}</p>
                 <ol className="list-decimal list-inside ml-1">
                   <li>{t("emergencyRecovery.steps.confirmFlash.step1")}</li>
@@ -484,7 +484,7 @@ export function EmergencyRecoveryModal({ open, onOpenChange }: EmergencyRecovery
         <div className="py-4">
           {status === 'idle' && (
             <div className="space-y-4">
-              <div className="bg-destructive/10 border border-destructive/30 p-4 rounded-md">
+              <div className="bg-destructive/10 border border-destructive/30 p-4 rounded-xl">
                 <div className="flex items-start gap-3">
                   <AlertTriangle className="h-5 w-5 text-destructive mt-0.5" />
                   <div className="space-y-2">
@@ -506,8 +506,8 @@ export function EmergencyRecoveryModal({ open, onOpenChange }: EmergencyRecovery
               )}
 
               {!isConnected && (
-                <div className="bg-blue-50 border border-blue-200 p-4 rounded-md space-y-3">
-                  <p className="text-sm text-blue-800 text-center">
+                <div className="bg-brand/10 border border-brand/30 p-4 rounded-xl space-y-3">
+                  <p className="text-sm text-foreground text-center">
                     <strong>{t("emergencyRecovery.deviceNotConnected.message")}</strong>{" "}
                     {t("emergencyRecovery.deviceNotConnected.instructions")}
                   </p>
@@ -519,7 +519,7 @@ export function EmergencyRecoveryModal({ open, onOpenChange }: EmergencyRecovery
                       style={{ width: 192, height: 192 }}
                     />
                   </div>
-                  <p className="text-xs text-blue-700 text-center">
+                  <p className="text-xs text-muted-foreground text-center">
                     {t("emergencyRecovery.deviceNotConnected.bootselHint")}
                   </p>
                 </div>
@@ -550,7 +550,7 @@ export function EmergencyRecoveryModal({ open, onOpenChange }: EmergencyRecovery
           )}
 
           {status === 'error' && (
-            <div className="bg-destructive/10 p-4 rounded-md flex items-start gap-3 text-destructive">
+            <div className="bg-destructive/10 p-4 rounded-xl flex items-start gap-3 text-destructive">
               <AlertTriangle className="h-5 w-5 mt-0.5" />
               <div className="space-y-1">
                 <p className="font-semibold">{t("emergencyRecovery.error.title")}</p>
