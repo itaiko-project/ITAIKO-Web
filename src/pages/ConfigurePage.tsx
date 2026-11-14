@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { useDevice } from "@/context/DeviceContext";
 import { initializeHelpContent } from "@/lib/help-content";
+import { isZhongTaiko } from "@/lib/edition";
 import { Activity, ChevronRight } from "lucide-react";
 
 // Initialize help content
@@ -42,7 +43,12 @@ function ConfigurePageContent() {
       <FirmwareUpdateModal />
       <header className="border-b w-full">
         <div className="grid grid-cols-[1fr_auto] sm:flex min-h-18 items-center justify-between gap-4 sm:gap-8 px-4 md:px-8 py-3 w-full">
-          <Link to="/" className="shrink-0 rounded-sm focus-visible:outline-2 focus-visible:outline-brand focus-visible:outline-offset-4">
+          <Link to="/" className="shrink-0 flex items-center gap-2 rounded-sm focus-visible:outline-2 focus-visible:outline-brand focus-visible:outline-offset-4">
+            {showZhongTaiko && (
+              <span className="font-extrabold tracking-tight text-lg sm:text-xl whitespace-nowrap">
+                ZhongTaiko <span className="text-muted-foreground font-normal">×</span>
+              </span>
+            )}
             <img src="/itaiko.png" className="pixelated drag-none w-28 sm:w-36 h-auto" alt="ITAIKO" />
           </Link>
           <div className="sm:ml-auto">

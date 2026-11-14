@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import { getRememberedEdition, isZhongTaiko } from "@/lib/edition";
 import { ChevronDown, ShoppingCart, Wrench } from "lucide-react";
 
 const DrumViewer = lazy(() => import("@/components/DrumViewer"));
@@ -178,6 +179,8 @@ function GitHubIcon({ size = 20 }: { size?: number }) {
 export function LandingPage() {
   const { t } = useTranslation("pages");
   const logo = useLogoSizes();
+  // ZhongTaiko co-branding when the last-connected drum was one (remembered in localStorage).
+  const [showZhongTaiko] = useState(() => isZhongTaiko(getRememberedEdition()));
   const drumSlotRef = useRef<HTMLDivElement>(null);
   const controllerSlotRef = useRef<HTMLDivElement>(null);
   const headingRef = useScaleToFit([logo.h, logo.heroW, logo.heroH]);
@@ -447,7 +450,12 @@ export function LandingPage() {
         <nav className={`absolute top-0 left-0 right-0 flex items-center justify-between px-4 md:px-8 py-3 transition-colors duration-300 ${
           navSolid ? 'bg-background/95 border-b' : 'border-b border-transparent'
         }`}>
-          <Link to="/">
+          <Link to="/" className="flex items-center gap-2">
+            {showZhongTaiko && (
+              <span className="font-extrabold tracking-tight text-lg sm:text-xl whitespace-nowrap">
+                ZhongTaiko <span className="text-muted-foreground font-normal">×</span>
+              </span>
+            )}
             <img
               src="itaiko.png"
               className="pixelated drag-none"
