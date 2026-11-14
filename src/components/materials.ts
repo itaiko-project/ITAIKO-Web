@@ -9,7 +9,10 @@ export const PHONE = typeof window !== "undefined" && window.matchMedia("(max-wi
  * The drum model. Phones get the variant with 1024 px textures (scripts/glb-mobile.cjs): 1 MB less to download and a
  * quarter of the texture memory. index.html preloads the same file by the same media query.
  */
-export const MODEL_URL = PHONE ? "iTaiko.mobile.glb" : "iTaiko.webp.glb";
+// ?hires (dev server only, used by scripts/capture-static.mjs): the full-resolution Pro from the project root, so the
+// pre-rendered stills get its 4-8K textures. Too heavy to ship; the live scene keeps the files above.
+const HIRES = import.meta.env.DEV && typeof location !== "undefined" && new URLSearchParams(location.search).has("hires");
+export const MODEL_URL = HIRES ? "/iTaiko+Controller+Cavo_GLB.glb" : PHONE ? "iTaiko.mobile.glb" : "iTaiko.webp.glb";
 export const MODEL_BYTES = PHONE ? 1_574_424 : 2_569_528; // progress fallback when the server sends no Content-Length
 /** Device pixel ratio the 3D canvases draw at: capped, since fill rate is what makes phones (and Firefox) stutter. */
 export const PIXEL_RATIO = typeof window === "undefined" ? 1 : Math.min(window.devicePixelRatio, PHONE ? 1.5 : 1.75);
@@ -21,6 +24,58 @@ export const sceneReady: Promise<void> = new Promise((resolve) => {
   if (typeof window !== "undefined") setTimeout(resolve, 10000);
 });
 export const markSceneReady = () => resolveSceneReady();
+
+let baked: Promise<{ data: Uint16Array; width: number; height: number }> | null = null;
+
+/**
+ * The scenes' image-based lighting: PMREMGenerator.fromScene(RoomEnvironment, 0.04), baked once by
+ * scripts/env/bake.mjs into public/env/room.bin.gz and uploaded here as the ready CubeUV texture. Building it live
+ * costs a second of main-thread freeze in Firefox (its shaders compile synchronously); this costs 200 KB. Falls back
+ * to building it live if the file can't be read.
+ */
+export async function environment(renderer: THREE.WebGLRenderer): Promise<THREE.Texture> {
+  baked ??= (async () => {
+    const res = await fetch("env/room.bin.gz");
+    if (!res.ok) throw new Error(`env/room.bin.gz: ${res.status}`);
+    let bytes = new Uint8Array(await res.arrayBuffer());
+    // Still gzipped unless the server already decoded it (Content-Encoding).
+    if (bytes[0] === 0x1f && bytes[1] === 0x8b) {
+      const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream("gzip"));
+      bytes = new Uint8Array(await new Response(stream).arrayBuffer());
+    }
+    const width = bytes[0] | (bytes[1] << 8), height = bytes[2] | (bytes[3] << 8), row = width * 3, n = row * height;
+    if (bytes.length !== 4 + 2 * n) throw new Error("env/room.bin.gz: bad size");
+    // Undo the packing (see bake.mjs): high + low byte planes, delta from the texel above, 12 top bits of a half.
+    const data = new Uint16Array(width * height * 4), prev = new Uint16Array(row);
+    for (let i = 0, t = 0; i < n; i += 3, t += 4) {
+      for (let c = 0; c < 3; c++) {
+        const k = i + c, x = k % row;
+        const v = (prev[x] + ((bytes[4 + k] << 8) | bytes[4 + n + k])) & 0xfff;
+        prev[x] = v;
+        data[t + c] = v << 4;
+      }
+      data[t + 3] = 0x3c00; // 1.0
+    }
+    return { data, width, height };
+  })();
+  try {
+    const { data, width, height } = await baked;
+    const texture = new THREE.DataTexture(data, width, height, THREE.RGBAFormat, THREE.HalfFloatType);
+    texture.mapping = THREE.CubeUVReflectionMapping as THREE.Mapping; // the PMREM layout (missing from the typings' union)
+    texture.magFilter = texture.minFilter = THREE.LinearFilter;
+    texture.colorSpace = THREE.LinearSRGBColorSpace;
+    texture.name = "PMREM.cubeUv";
+    texture.needsUpdate = true;
+    return texture;
+  } catch (error) {
+    console.warn("Baked environment unavailable, building it live:", error);
+    const { RoomEnvironment } = await import("three/examples/jsm/environments/RoomEnvironment.js");
+    const pmrem = new THREE.PMREMGenerator(renderer);
+    const texture = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+    pmrem.dispose();
+    return texture;
+  }
+}
 
 /** Plywood Don + Ka halves, exported from the assembly 3MF by scripts/plywood-glb.cjs: mm, head frame, front at z = 0. */
 export const PLYWOOD_URL = "plywood.glb";
@@ -72,8 +127,13 @@ export function birchTexture(anisotropy: number): THREE.CanvasTexture {
   return texture;
 }
 
+let white: THREE.DataTexture | null = null;
+
 export function birchMaterial(anisotropy: number, options: THREE.MeshStandardMaterialParameters = {}) {
-  return new THREE.MeshStandardMaterial({ map: birchTexture(anisotropy), roughness: 0.72, metalness: 0, ...options });
+  // A plain white roughness map (× 1: same look) gives the wood the steel's exact shader defines (map + roughness
+  // map), so the two share one program: one compile less, ~140 ms of frozen page in Firefox.
+  white ??= Object.assign(new THREE.DataTexture(new Uint8Array([255, 255, 255, 255]), 1, 1), { needsUpdate: true });
+  return new THREE.MeshStandardMaterial({ map: birchTexture(anisotropy), roughnessMap: white, roughness: 0.72, metalness: 0, ...options });
 }
 
 /**

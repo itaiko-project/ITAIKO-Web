@@ -2,12 +2,11 @@ import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
-import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 import { Reflector } from "three/examples/jsm/objects/Reflector.js";
 import { OLED_H, OLED_W, Onigiri, type Button } from "./oled";
 import { OLED_PANEL, oledScreen } from "./onigiriScreen";
 import { buildPlates } from "./plates";
-import { birchMaterial, galvanizedSteel, loadPlywood, markSceneReady, MODEL_BYTES, MODEL_URL, PHONE, PIXEL_RATIO, PLY, sceneReady, whenIdle } from "./materials";
+import { birchMaterial, environment, galvanizedSteel, loadPlywood, markSceneReady, MODEL_BYTES, MODEL_URL, PHONE, PIXEL_RATIO, PLY, sceneReady, whenIdle } from "./materials";
 import { dimension, type Dimension, type Point } from "./dimension";
 
 
@@ -127,6 +126,7 @@ export default function DrumViewer({ className, style, focusRef, controllerRef, 
   useEffect(() => {
     const host = hostRef.current!;
 
+    if (TRACE) ((window as unknown as { __warm?: string[] }).__warm ??= []).push(`viewer effect start @${Math.round(performance.now())}`);
     let renderer: THREE.WebGLRenderer;
     try {
       renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
@@ -157,8 +157,12 @@ export default function DrumViewer({ className, style, focusRef, controllerRef, 
     dimsRef.current = dims;
 
     const scene = new THREE.Scene();
-    const pmrem = new THREE.PMREMGenerator(renderer);
-    scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+    // Baked lighting (see environment()): fetched alongside the model, in place before the warm-up builds programs.
+    const envReady = environment(renderer).then((texture) => {
+      if (TRACE) ((window as unknown as { __warm?: string[] }).__warm ??= []).push(`environment ready @${Math.round(performance.now())}`);
+      if (disposed) texture.dispose();
+      else scene.environment = texture;
+    });
     scene.environmentIntensity = ENV_INTENSITY;
 
     const camera = new THREE.PerspectiveCamera(35, 1); // near/far are set from the model in fit()
@@ -299,7 +303,7 @@ export default function DrumViewer({ className, style, focusRef, controllerRef, 
     host.style.opacity = "0";
     const loadStart = performance.now();
     new GLTFLoader().load(MODEL_URL, async (gltf) => {
-      if (TRACE) ((window as unknown as { __warm?: string[] }).__warm ??= []).push(`gltf parsed at ${Math.round(performance.now() - loadStart)}ms`);
+      if (TRACE) ((window as unknown as { __warm?: string[] }).__warm ??= []).push(`gltf parsed at ${Math.round(performance.now() - loadStart)}ms @${Math.round(performance.now())}`);
       if (disposed) {
         disposeModel(gltf.scene);
         return;
@@ -397,7 +401,7 @@ export default function DrumViewer({ className, style, focusRef, controllerRef, 
       // fade masks, floor light), then build every shader program and upload every texture the scene will ever use.
       // One object at a time, yielding a frame whenever a slice runs long: browsers without parallel shader
       // compilation (Firefox) compile on the main thread, and in one go this froze the page for seconds.
-      await Promise.all([steelSet?.ready, woodLoaded]);
+      await Promise.all([steelSet?.ready, woodLoaded, envReady]);
       if (disposed) return;
       const hidden: THREE.Object3D[] = [];
       scene.traverse((o) => {
@@ -443,7 +447,7 @@ export default function DrumViewer({ className, style, focusRef, controllerRef, 
         // One draw covers the mirror too: its target shares the canvas's shader programs (see stage()).
         const t0 = performance.now();
         renderer.render(scene, camera);
-        trace(`draw ${mesh.name || mesh.type}`, t0);
+        trace(`draw ${mesh.name || mesh.type} (${[mesh.material].flat().map((m) => m.name || m.type).join()})`, t0);
         mesh.layers.disable(WARM_LAYER);
         if (!(await pause())) return;
       }
@@ -688,7 +692,6 @@ export default function DrumViewer({ className, style, focusRef, controllerRef, 
       onigiri?.dispose();
       disposeModel(scene);
       scene.environment?.dispose();
-      pmrem.dispose();
       renderer.dispose();
       renderer.domElement.remove();
       hintEls.label.remove();
@@ -1229,8 +1232,6 @@ export function MiniDrum({ className }: { className?: string }) {
     host.appendChild(renderer.domElement);
 
     const scene = new THREE.Scene();
-    const pmrem = new THREE.PMREMGenerator(renderer);
-    scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
     scene.environmentIntensity = ENV_INTENSITY;
     const camera = new THREE.PerspectiveCamera(30, 1);
     const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -1259,8 +1260,9 @@ export function MiniDrum({ className }: { className?: string }) {
     };
     const load = () => {
       loading = true;
-      new GLTFLoader().load(MODEL_URL, (gltf) => {
-        if (disposed) return disposeModel(gltf.scene);
+      Promise.all([new GLTFLoader().loadAsync(MODEL_URL), environment(renderer)]).then(([gltf, env]) => {
+        if (disposed) { env.dispose(); return disposeModel(gltf.scene); }
+        scene.environment = env;
         for (const name of ["Controller_Low", "Cavo_Low"]) {
           const part = gltf.scene.getObjectByName(name);
           if (!part) continue;
@@ -1307,7 +1309,6 @@ export function MiniDrum({ className }: { className?: string }) {
       ro.disconnect();
       disposeModel(scene);
       scene.environment?.dispose();
-      pmrem.dispose();
       renderer.dispose();
       renderer.domElement.remove();
     };
