@@ -155,7 +155,7 @@
   -o-user-drag: none;
 }
 
-/* Landing-page display face: Pixelify Sans (OFL), latin subset, sits on the logo's pixel grid */
+/* Site display face: Pixelify Sans (OFL), latin subset, sits on the logo's pixel grid */
 @font-face {
   font-family: 'Pixelify Sans';
   src: url('/PixelifySans-latin.woff2') format('woff2');
@@ -340,10 +340,47 @@
   animation: feature-ticker 30s linear infinite;
   will-change: transform;
 }
+
 /* Three identical copies in the track; sliding by one copy (a third) lands exactly where it started */
 @keyframes feature-ticker {
   to { transform: translateX(calc(-100% / 3)); }
 }
 @media (prefers-reduced-motion: reduce) {
   .feature-ticker-track { animation: none; }
+}
+
+/* Keep the configurator's controls and surfaces in the homepage's visual language.
+   Scoped tokens leave the homepage and the pad-specific signal colors intact. */
+/* body:has() so portaled dialogs, selects and toasts get the same tokens */
+body:has(.configure-page) {
+  --primary: var(--brand-fill);
+  --primary-foreground: #fff;
+  --ring: var(--brand);
+  --card: color-mix(in srgb, var(--foreground) 3%, var(--background));
+}
+
+/* Key-mapping board: the button waiting for a key fades in and out */
+.key-listening { animation: key-listen 1s ease-in-out infinite; }
+@keyframes key-listen { 50% { fill-opacity: 0.25; } }
+@media (prefers-reduced-motion: reduce) {
+  .key-listening { animation: none; fill-opacity: 0.4; }
+}
+
+/* Auto-detect wizard: the pad to hit pulses */
+.pad-flash { animation: pad-flash 0.9s ease-in-out infinite; }
+@keyframes pad-flash { from, to { opacity: 0.15; } 50% { opacity: 0.75; } }
+@media (prefers-reduced-motion: reduce) {
+  .pad-flash { animation: none; opacity: 0.6 !important; }
+}
+
+.configure-page [data-slot="card"] {
+  border-radius: 1rem;
+  box-shadow: none;
+}
+
+.configure-page [data-slot="card-title"] {
+  font-family: var(--font-display);
+  font-size: 1.375rem;
+  font-weight: 400;
+  line-height: 1.2;
 }
