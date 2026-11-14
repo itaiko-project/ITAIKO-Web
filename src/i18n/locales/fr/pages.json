@@ -1,0 +1,190 @@
+{
+  "landing": {
+    "nav": {
+      "buy": "Boutique",
+      "next": "Section suivante"
+    },
+    "hero": {
+      "welcome": "Voici",
+      "tagline1a": "Le ",
+      "tagline1b": "taiko d’arcade",
+      "tagline1c": ", directement chez vous.",
+      "tagline2": "Mêmes dimensions que l’original, conçu et assemblé en Italie."
+    },
+    "cta": {
+      "configure": "Configurer votre tambour",
+      "demo": "Essayez le configurateur web !",
+      "buy": "Acheter"
+    },
+    "onigiri1": {
+      "article": "L’",
+      "name": "Onigiri-con",
+      "tagline1": "Le « cerveau » d’ITAIKO : utilisez-le comme contrôleur ou pour configurer le tambour grâce à son écran OLED.",
+      "tagline2": "Compatible aussi avec TaikoForce et ZhongTaiko.",
+      "tryMe": "Essayez-moi !",
+      "port": "Port JTAG-8",
+      "screen": "Configurez le tambour à la volée !"
+    },
+    "specs": {
+      "ticker": [
+        {
+          "value": "Ø 43 cm",
+          "label": "Peau format arcade"
+        },
+        {
+          "value": "1000 Hz",
+          "label": "Interrogation USB"
+        },
+        {
+          "value": "3 mm",
+          "label": "Plaques en acier galvanisé"
+        },
+        {
+          "value": "8",
+          "label": "Modes manette"
+        },
+        {
+          "value": "12 mm",
+          "label": "Contreplaqué de bouleau"
+        },
+        {
+          "value": "40 mm",
+          "label": "Plaques Ka élargies"
+        },
+        {
+          "value": "128×64",
+          "label": "OLED intégré"
+        },
+        {
+          "value": "0",
+          "label": "Logiciel à installer"
+        },
+        {
+          "value": "MIDI",
+          "label": "Mode tambour USB"
+        },
+        {
+          "value": "100%",
+          "label": "Open source"
+        },
+        {
+          "value": "Italie",
+          "label": "Conçu et assemblé"
+        }
+      ]
+    },
+    "specSheet": {
+      "heading": "Caractéristiques",
+      "rows": [
+        {
+          "label": "Matériaux",
+          "value": "Plaques en contreplaqué de bouleau de 12 mm, plaques en acier galvanisé de 3 mm"
+        },
+        {
+          "label": "Support",
+          "value": "Imprimé en 3D en PETG, se retire facilement grâce à 4 vis à main, sans tournevis"
+        },
+        {
+          "label": "Contrôleur",
+          "value": "E-box Onigiri-con, OLED 128×64, matériel et firmware open source"
+        },
+        {
+          "label": "Interrogation",
+          "value": "USB à 1000 Hz"
+        },
+        {
+          "label": "Plateformes",
+          "value": "PC · PS3 · PS4* · Nintendo Switch 1 et 2 · borne d’arcade d’origine · USB MIDI"
+        }
+      ],
+      "note": "*Vous devez fournir vos propres clés PS4."
+    },
+    "faq": {
+      "heading": "FAQ",
+      "items": [
+        {
+          "q": "Avec quelles plateformes fonctionne-t-il ?",
+          "a": "PC, PS3, PS4, Nintendo Switch 1 et 2 et la borne d’arcade d’origine. En mode MIDI, il fonctionne aussi comme tambour USB MIDI dans n’importe quel logiciel de musique. Choisissez le mode depuis le menu OLED ou le configurateur web."
+        },
+        {
+          "q": "Faut-il installer un logiciel ?",
+          "a": "Non. Passez le tambour en mode clavier (Keyboard P1 ou P2), branchez-le et ouvrez le configurateur dans un navigateur compatible WebSerial (Chrome, Edge, Opera, Firefox). Tout se règle aussi depuis l’OLED de l’E-box."
+        },
+        {
+          "q": "Mon tambour enregistre des frappes que je n’ai pas données. Que faire ?",
+          "a": "Baissez la sensibilité du pad concerné depuis le menu OLED ou le moniteur en direct du configurateur, où vous voyez les lectures de chaque pad en temps réel."
+        },
+        {
+          "q": "Puis-je utiliser l’Onigiri-con avec un autre tambour ?",
+          "a": "Oui. Il est également compatible avec les tambours TaikoForce et ZhongTaiko."
+        },
+        {
+          "q": "Est-ce vraiment open source ?",
+          "a": "Oui : le firmware, le matériel et ce configurateur sont sur GitHub. Vous pouvez même construire le vôtre."
+        }
+      ]
+    },
+    "closing": {
+      "heading": "Offrez-vous",
+      "tagline": "Prêt pour l’expérience taiko ultime ?"
+    },
+    "tour": {
+      "measure": "Ø 43 cm / 17 in",
+      "compare": {
+        "ours": "ITAIKO",
+        "original": "Tambour d’arcade d’origine",
+        "steel": {
+          "ours": "3 mm",
+          "original": "≈ 2 mm"
+        },
+        "birch": {
+          "ours": "12 mm",
+          "original": "≈ 10 mm"
+        },
+        "ka": {
+          "ours": "Ka 40 mm",
+          "original": "Ka ≈ 30 mm"
+        }
+      },
+      "items": [
+        {
+          "eyebrow": "Surface de frappe",
+          "stat": "",
+          "title": "Véritable caoutchouc d’arcade",
+          "body": "Le caoutchouc est exactement le même que celui des bornes d’arcade, pour des sensations 100 % arcade."
+        },
+        {
+          "eyebrow": "Sous le caoutchouc",
+          "stat": "3 mm",
+          "title": "Plaques en acier galvanisé",
+          "body": "Nous avons élargi les plaques en acier pour des roulements sans précédent et, tant qu’à faire, nous les avons aussi épaissies : vos bachi rebondiront (presque) toutes seules."
+        },
+        {
+          "eyebrow": "Corps",
+          "stat": "12 mm",
+          "title": "Contreplaqué de bouleau",
+          "body": "Le corps d’ITAIKO est en contreplaqué de bouleau de 12 mm, acheté et découpé en Italie. Rigide et dense, il renvoie chaque frappe avec un son sec et franc."
+        },
+        {
+          "eyebrow": "Support",
+          "stat": "",
+          "title": "Nouveaux supports avec porte-bachi",
+          "body": "Conçus pour être légers et faciles à monter : il suffit de serrer ou desserrer 4 vis à main, pas besoin de tournevis.",
+          "extra": "Et à l’avant, vous pouvez poser vos bachi !"
+        }
+      ]
+    }
+  },
+  "configure": {
+    "header": {
+      "logoAlt": "Logo"
+    },
+    "advanced": {
+      "label": "Avancé"
+    },
+    "tabs": {
+      "config": "Configuration",
+      "monitor": "Moniteur en direct"
+    }
+  }
+}

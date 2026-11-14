@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useDevice } from "@/context/DeviceContext";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,7 +13,8 @@ import {
 } from "@/components/ui/select";
 import type { ADCChannels } from "@/types";
 import { HelpButton } from "@/components/ui/help-modal";
-import { RotateCcw } from "lucide-react";
+import { RotateCcw, Wand2 } from "lucide-react";
+import { ADCAutoDetect } from "./ADCAutoDetect";
 
 interface ADCChannelSelectProps {
   label: string;
@@ -57,10 +59,12 @@ function ADCChannelSelect({
   );
 }
 
-export function ADCChannelSettings() {
+/** Basic mode: just auto-detect. Advanced adds the per-pad channel selectors and reset. */
+export function ADCChannelSettings({ advanced }: { advanced: boolean }) {
   const { t } = useTranslation("config");
   const { config, updateADCChannel, isConnected, resetADCChannels } = useDevice();
   const adcChannels = config.adcChannels;
+  const [detectOpen, setDetectOpen] = useState(false);
 
   // Don't render if ADC channels aren't supported by the firmware
   if (!adcChannels) {
@@ -72,12 +76,17 @@ export function ADCChannelSettings() {
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <CardTitle className="text-base flex items-center gap-2">
-            {t("adcChannels.title")}
+            {t(advanced ? "adcChannels.title" : "adcChannels.basicTitle")}
             <HelpButton helpKey="adc-channels" />
 
           </CardTitle>
 
-          <Button
+          <div className="flex items-center gap-1">
+          <Button variant="outline" size="sm" onClick={() => setDetectOpen(true)} disabled={!isConnected}>
+            <Wand2 aria-hidden />
+            {t("adcChannels.autoDetect.button")}
+          </Button>
+          {advanced && <Button
             variant="ghost"
             size="icon"
             onClick={resetADCChannels}
@@ -85,14 +94,14 @@ export function ADCChannelSettings() {
             title={t("adcChannels.resetTitle")}
           >
             <RotateCcw className="h-4 w-4" />
-          </Button>
+          </Button>}
+          </div>
         </div>
         <CardDescription>
-          {t("adcChannels.description")}
+          {t(advanced ? "adcChannels.description" : "adcChannels.basicDescription")}
         </CardDescription>
       </CardHeader>
-      <CardContent>
-
+      {advanced && <CardContent>
         <div className="space-y-3">
           <ADCChannelSelect
             label={t("adcChannels.donLeft")}
@@ -123,7 +132,8 @@ export function ADCChannelSettings() {
             disabled={!isConnected}
           />
         </div>
-      </CardContent>
+      </CardContent>}
+      <ADCAutoDetect open={detectOpen} onOpenChange={setDetectOpen} />
     </Card>
   );
 }

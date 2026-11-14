@@ -18,16 +18,14 @@ export function FirmwareUpdatePanel() {
 
   return (
     <div className="z-50 animate-in slide-in-from-top-5 fade-in duration-300">
-      <Card className="border-amber-500/50 bg-amber-500/10 shadow-md backdrop-blur-sm">
+      <Card className="border-brand/40 bg-brand/10">
         <CardContent className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2 text-amber-600 font-medium">
+          <div className="flex items-center gap-2 font-medium">
             <AlertCircle className="h-3.5 w-3.5" />
             <span>{t("firmwareUpdatePanel.updateAvailable", { version: latestFirmware?.version })}</span>
           </div>
           <Button
             size="sm"
-            variant="ghost"
-            className=" bg-amber-600 hover:bg-amber-700 text-white hover:text-white border-none rounded-sm"
             onClick={() => setModalOpen(true)}
           >
             <Download className="mr-1.5 h-3 w-3" />

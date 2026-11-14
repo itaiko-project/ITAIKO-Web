@@ -49,7 +49,21 @@
     "kaLeft": "Ka Left",
     "donRight": "Don Right",
     "kaRight": "Ka Right",
-    "channel": "Channel {{n}}"
+    "channel": "Channel {{n}}",
+    "autoDetect": {
+      "button": "Auto-detect",
+      "title": "Find your pad wiring",
+      "intro": "Hit each pad when asked. We'll work out which sensor it's wired to.",
+      "hitPad": "Hit {{pad}} {{n}} times",
+      "inconsistent": "Those hits landed on different sensors. Keep hitting {{pad}}.",
+      "duplicate": "That sensor is already {{other}}. Make sure you're hitting {{pad}}.",
+      "done": "All four pads found",
+      "restart": "Start over",
+      "apply": "Apply",
+      "preparing": "Resetting the channel mapping…"
+    },
+    "basicTitle": "Pad Wiring",
+    "basicDescription": "Pads reacting to the wrong hit? Auto-detect finds which sensor each pad is wired to."
   },
   "drumKeyMapping": {
     "title": "Drum Key Bindings",

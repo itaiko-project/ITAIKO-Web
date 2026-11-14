@@ -33,7 +33,7 @@ function Step1HoldButtons({ active }: StepProps) {
             className={`
               flex items-center justify-center w-20 h-10 rounded-full border-2 text-xl font-bold
               transition-all duration-300
-              ${active ? "border-amber-500 bg-amber-500/20 text-amber-600 scale-110 shadow-lg shadow-amber-500/30" : "border-muted text-muted-foreground"}
+              ${active ? "border-brand bg-brand/15 text-brand-ink scale-110" : "border-muted text-muted-foreground"}
             `}
           >
             {label}
@@ -43,7 +43,7 @@ function Step1HoldButtons({ active }: StepProps) {
       {/* Hold progress bar */}
       <div className="w-40 h-1.5 rounded-full bg-muted overflow-hidden">
         <div
-          className={`h-full bg-amber-500 rounded-full transition-none ${active ? "animate-fill-bar" : "w-0"}`}
+          className={`h-full bg-brand rounded-full transition-none ${active ? "animate-fill-bar" : "w-0"}`}
           style={
             active
               ? {
@@ -79,14 +79,14 @@ function Step2NavigateMenu({ active }: StepProps) {
           Step 2 — Navigate to <strong>Device Mode</strong>
         </Trans>
       </p>
-      <div className="w-48 border rounded-lg overflow-hidden bg-background shadow-md">
+      <div className="w-48 border rounded-lg overflow-hidden bg-background">
         <div className="bg-muted px-3 py-1.5 text-xs font-semibold text-center border-b">ITAIKO Menu</div>
         {items.map((item, i) => (
           <div
             key={item}
             className={`
               px-3 py-2 text-xs flex items-center gap-2 transition-colors duration-200
-              ${active && i === highlighted ? "bg-amber-500 text-white font-semibold" : "text-foreground"}
+              ${active && i === highlighted ? "bg-brand-fill text-white font-semibold" : "text-foreground"}
             `}
           >
             {active && i === highlighted && <span className="text-white">▶</span>}
@@ -127,14 +127,14 @@ function Step3SelectKeyboard({ active }: StepProps) {
           Step 3 — Select <strong>Keyboard P1</strong> (or P2)
         </Trans>
       </p>
-      <div className="w-48 border rounded-lg overflow-hidden bg-background shadow-md">
+      <div className="w-48 border rounded-lg overflow-hidden bg-background">
         <div className="bg-muted px-3 py-1.5 text-xs font-semibold text-center border-b">Device Mode</div>
         {modes.map((mode, i) => (
           <div
             key={mode}
             className={`
               px-3 py-2 text-xs flex items-center gap-2 transition-colors duration-200
-              ${active && i === highlighted ? "bg-amber-500 text-white font-semibold" : "text-foreground"}
+              ${active && i === highlighted ? "bg-brand-fill text-white font-semibold" : "text-foreground"}
             `}
           >
             {active && i === highlighted && <span className="text-white">▶</span>}
@@ -206,7 +206,7 @@ export function KeyboardModeHelperModal({ open, onClose }: KeyboardModeHelperMod
               <div
                 key={i}
                 className={`h-1.5 rounded-full transition-all duration-300 ${
-                  step === i ? "w-6 bg-amber-500" : "w-1.5 bg-muted"
+                  step === i ? "w-6 bg-brand" : "w-1.5 bg-muted"
                 }`}
               />
             ))}
