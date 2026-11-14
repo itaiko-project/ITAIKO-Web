@@ -100,8 +100,8 @@ export function FirmwareUpdateModal() {
               <div className="flex items-center justify-center py-4">
                  {status === 'writing' ? (
                    <div className="relative h-16 w-16">
-                     <div className="absolute inset-0 border-4 border-amber-200 rounded-full"></div>
-                     <div className="absolute inset-0 border-4 border-amber-500 rounded-full border-t-transparent animate-spin"></div>
+                     <div className="absolute inset-0 border-4 border-brand/20 rounded-full"></div>
+                     <div className="absolute inset-0 border-4 border-brand rounded-full border-t-transparent animate-spin"></div>
                    </div>
                  ) : (
                    <Loader2 className="h-12 w-12 animate-spin text-primary" />
@@ -119,19 +119,19 @@ export function FirmwareUpdateModal() {
               </div>
 
               {status === 'waiting_for_device' && (
-                <p className="text-sm text-muted-foreground text-center bg-muted/50 p-2 rounded">
+                <p className="text-sm text-muted-foreground text-center bg-muted/50 p-3 rounded-xl">
                   {t("firmwareUpdateModal.progress.waitingForDevice")}
                 </p>
               )}
 
               {status === 'flashing' && (
-                <p className="text-sm text-amber-600 font-medium text-center bg-amber-50 p-2 rounded border border-amber-200">
+                <p className="text-sm font-medium text-center bg-amber-500/10 p-3 rounded-xl border border-amber-500/30">
                   {t("firmwareUpdateModal.progress.flashingPrompt")}
                 </p>
               )}
 
               {status === 'writing' && (
-                <p className="text-sm text-amber-600 font-medium text-center bg-amber-50 p-2 rounded border border-amber-200 animate-pulse">
+                <p className="text-sm font-medium text-center bg-amber-500/10 p-3 rounded-xl border border-amber-500/30">
                   {t("firmwareUpdateModal.progress.writingWarning")}
                 </p>
               )}
@@ -140,12 +140,12 @@ export function FirmwareUpdateModal() {
 
           {status === 'manual_action_required' && (
             <div className="space-y-4">
-              <div className="bg-amber-50 border border-amber-200 p-4 rounded-md">
-                <div className="flex items-center gap-2 text-amber-800 mb-2">
+              <div className="bg-amber-500/10 border border-amber-500/30 p-4 rounded-xl">
+                <div className="flex items-center gap-2 text-foreground mb-2">
                   <Download className="h-5 w-5" />
                   <span className="font-semibold">{t("firmwareUpdateModal.manualAction.fileDownloaded")}</span>
                 </div>
-                <div className="text-sm text-amber-700 space-y-2">
+                <div className="text-sm text-muted-foreground space-y-2">
                   <p>{t("firmwareUpdateModal.manualAction.intro")}</p>
                   <ol className="list-decimal list-inside ml-1">
                     <li>{t("firmwareUpdateModal.manualAction.step1")}</li>

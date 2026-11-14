@@ -82,10 +82,9 @@ export function HeaderConnectionStatus() {
       </Button>
       <Button
         onClick={handleConnect}
-        variant={isConnected ? undefined : "default"}
+        variant={isConnected ? "outline" : "default"}
         size="sm"
         disabled={status === "connecting"}
-        className={isConnected ? "bg-amber-500 text-black hover:bg-amber-600" : ""}
       >
         {isConnected
           ? t("headerConnectionStatus.disconnect")

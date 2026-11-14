@@ -15,6 +15,7 @@ import { BackupRestore } from "./BackupRestore";
 import { PAD_NAMES, PAD_COLORS } from "@/types";
 import { HelpButton } from "@/components/ui/help-modal";
 import { HitHistoryGrid } from "@/components/visual/HitHistoryGrid";
+import { DRUM_PAD_PATHS } from "@/components/visual/drumPads";
 import { RotateCcw } from "lucide-react";
 import {
   Dialog,
@@ -90,10 +91,10 @@ export function ConfigurationTab() {
   return (
     <div className="space-y-6">
       {/* Visual Drum */}
-      <div className="flex flex-col items-center py-4 relative">
+      <div className="flex flex-col items-center py-4 relative rounded-2xl border bg-foreground/[0.03] overflow-hidden">
         {/* Drum Container - Blurred when not ready */}
         <div
-          className={`relative w-144 h-144 transition-all duration-500 ${!isReady ? "blur-sm opacity-50 grayscale" : ""}`}
+          className={`relative w-full max-w-100 aspect-square transition-all duration-500 ${!isReady ? "blur-sm opacity-50 grayscale" : ""}`}
         >
           {/* Background Image */}
           <img
@@ -103,52 +104,27 @@ export function ConfigurationTab() {
           />
           {/* Drum SVG Overlay */}
           <svg viewBox="0 0 200 200" className="absolute inset-0 w-full h-full">
-            {/* Ka Left - left half of outer ring */}
-            <path
-              d="M 100 23 A 63 63 0 0 0 100 149 L 100 135 A 49 49 0 0 1 100 37 Z"
-              fill={PAD_COLORS.kaLeft}
-              style={{
-                opacity: triggers.kaLeft ? 0.6 : 0,
-                transition: triggers.kaLeft ? "none" : "opacity 200ms ease-out",
-              }}
-            />
-            {/* Ka Right - right half of outer ring */}
-            <path
-              d="M 100 23 A 63 63 0 0 1 100 149 L 100 135 A 49 49 0 0 0 100 37 Z"
-              fill={PAD_COLORS.kaRight}
-              style={{
-                opacity: triggers.kaRight ? 0.6 : 0,
-                transition: triggers.kaRight ? "none" : "opacity 200ms ease-out",
-              }}
-            />
-            {/* Don Left - left half of inner circle */}
-            <path
-              d="M 100 37 A 49 49 0 0 0 100 135 L 100 86 Z"
-              fill={PAD_COLORS.donLeft}
-              style={{
-                opacity: triggers.donLeft ? 0.6 : 0,
-                transition: triggers.donLeft ? "none" : "opacity 200ms ease-out",
-              }}
-            />
-            {/* Don Right - right half of inner circle */}
-            <path
-              d="M 100 37 A 49 49 0 0 1 100 135 L 100 86 Z"
-              fill={PAD_COLORS.donRight}
-              style={{
-                opacity: triggers.donRight ? 0.6 : 0,
-                transition: triggers.donRight ? "none" : "opacity 200ms ease-out",
-              }}
-            />
+            {PAD_NAMES.map((pad) => (
+              <path
+                key={pad}
+                d={DRUM_PAD_PATHS[pad]}
+                fill={PAD_COLORS[pad]}
+                style={{
+                  opacity: triggers[pad] ? 0.6 : 0,
+                  transition: triggers[pad] ? "none" : "opacity 200ms ease-out",
+                }}
+              />
+            ))}
           </svg>
         </div>
 
         {/* Connect Overlay - Centered over the drum */}
         {!isReady && (
           <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
-            <div className="bg-background/80 backdrop-blur-md px-6 py-3 rounded-2xl border shadow-sm text-center space-y-2">
-              <p className="text-lg font-semibold">{t("connectOverlay.connectYourDrum")}</p>
+            <div className="bg-background/90 backdrop-blur-md mx-4 px-5 sm:px-8 py-5 rounded-2xl border text-center space-y-2">
+              <p className="display-font text-2xl sm:text-3xl">{t("connectOverlay.connectYourDrum")}</p>
               <p className="text-xs text-muted-foreground">{t("connectOverlay.toStartConfiguration")}</p>
-              <p className="text-xs font-semibold text-amber-500 animate-pulse">
+              <p className="text-xs font-medium text-brand-ink">
                 {t("connectOverlay.setKeyboardMode")}
               </p>
             </div>
@@ -192,7 +168,7 @@ export function ConfigurationTab() {
         {/* Pad Configuration Grid */}
         <div>
           <div className="flex items-center justify-between mb-3">
-            <h3 className="font-medium flex items-center gap-2">
+            <h3 className="display-font text-2xl flex items-center gap-2">
               {t("padThresholds.title")}
               <HelpButton helpKey="pad-thresholds" />
             </h3>
@@ -213,20 +189,18 @@ export function ConfigurationTab() {
           </div>
         </div>
 
-        {/* Drum Key Bindings - Always visible */}
+        {/* Key bindings - always visible */}
         <DrumKeyMapping />
+        <InteractiveKeyMapping />
+
+        {/* Pad wiring: auto-detect always, channel selectors in advanced */}
+        <ADCChannelSettings advanced={advancedMode} />
 
         {/* Advanced Settings */}
         {advancedMode && (
           <>
             {/* Timing Settings */}
             <TimingSettings />
-
-            {/* ADC Channel Mapping */}
-            <ADCChannelSettings />
-
-            {/* Key Mappings */}
-            <InteractiveKeyMapping />
 
             {/* PS4 Authentication */}
             <PS4AuthSetup />

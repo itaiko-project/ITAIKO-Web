@@ -41,7 +41,21 @@
     "kaLeft": "咔 左",
     "donRight": "咚 右",
     "kaRight": "咔 右",
-    "channel": "通道 {{n}}"
+    "channel": "通道 {{n}}",
+    "autoDetect": {
+      "button": "自動偵測",
+      "title": "偵測鼓面接線",
+      "intro": "依提示敲擊每個鼓面，我們會找出它接在哪個感測器。",
+      "hitPad": "敲擊{{pad}} {{n}} 次",
+      "inconsistent": "這幾下落在不同的感測器上，請繼續敲擊{{pad}}。",
+      "duplicate": "這個感測器已經是{{other}}，請確認你敲的是{{pad}}。",
+      "done": "四個鼓面都找到了",
+      "restart": "重新開始",
+      "apply": "套用",
+      "preparing": "正在重設通道對應…"
+    },
+    "basicTitle": "鼓面接線",
+    "basicDescription": "鼓面對應錯了嗎？自動偵測會找出每個鼓面接在哪個感測器。"
   },
   "drumKeyMapping": {
     "title": "鼓面按鍵對應",
