@@ -29,7 +29,7 @@ const SETTLE_MS = Number(process.env.SETTLE_MS ?? 22000); // software rendering 
 // ONLY_LAYOUT=d or m: recapture just the desktop or the phone stills.
 for (const [layout, width, height, dpr] of [["d", 1440, 900, 1.5], ["m", 412, 800, 3]].filter(([l]) => !process.env.ONLY_LAYOUT || process.env.ONLY_LAYOUT === l)) {
   await send("Emulation.setDeviceMetricsOverride", { width, height, deviceScaleFactor: dpr, mobile: layout === "m" });
-  await send("Page.navigate", { url: `${ORIGIN}/?3d=force&shots=live` });
+  await send("Page.navigate", { url: `${ORIGIN}/?3d=force&shots=live&hires` });
   await ev(`(async () => { for (;;) { const h = document.querySelector("canvas")?.parentElement; if (h && h.style.opacity === "1") return; await new Promise(r => setTimeout(r, 200)); } })()`);
   await ev(`(() => { const s = document.createElement("style"); s.textContent = ${JSON.stringify(HIDE)}; document.head.append(s); })()`);
   const slides = await ev(`document.querySelectorAll("[data-section]").length`) - 1; // the last one has no 3D
