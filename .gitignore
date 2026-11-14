@@ -23,3 +23,6 @@ dist-ssr
 *.sw?
 DrumMonitor
 .claude
+# Render inputs and outputs kept locally (large): the high-res GLBs in the root and the shop photos.
+/*.glb
+/foto_shopify/
