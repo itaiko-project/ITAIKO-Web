@@ -1,30 +1,178 @@
 {
   "landing": {
+    "nav": {
+      "buy": "商店",
+      "next": "下一節"
+    },
     "hero": {
-      "subtitle": "直接在瀏覽器中設定並校準您的太鼓控制器。",
-      "badgeWebserial": "WebSerial",
-      "badgeRealtime": "即時監控",
-      "badgeNoDownload": "免下載"
+      "welcome": "認識",
+      "tagline1a": "",
+      "tagline1b": "街機太鼓",
+      "tagline1c": "，直接搬回家。",
+      "tagline2": "與原版尺寸相同，義大利設計與組裝。"
     },
     "cta": {
-      "configure": "開始設定太鼓"
+      "configure": "設定你的太鼓",
+      "demo": "試用網頁設定工具！",
+      "buy": "立即購買"
     },
-    "features": {
-      "liveMonitor": {
-        "title": "即時監控",
-        "description": "透過 GPU 加速的圖表，即時視覺化感測器數據"
-      },
-      "easyConfig": {
-        "title": "輕鬆設定",
-        "description": "以直覺操作調整閾值與時序設定"
-      },
-      "visualFeedback": {
-        "title": "視覺回饋",
-        "description": "打擊時即時點亮對應的鼓面區域"
-      }
+    "onigiri1": {
+      "article": "",
+      "name": "Onigiri-con",
+      "tagline1": "ITAIKO 的「大腦」：可當作控制器使用，也能透過 OLED 螢幕設定太鼓。",
+      "tagline2": "同時相容 TaikoForce 與 ZhongTaiko。",
+      "tryMe": "試試看！",
+      "port": "JTAG-8 連接埠",
+      "screen": "隨時隨地設定太鼓！"
     },
-    "footer": {
-      "browserRequirement": "需使用 Chrome、Edge、Opera 或安裝 WebSerial 擴充功能的 Firefox"
+    "specs": {
+      "ticker": [
+        {
+          "value": "Ø 43 cm",
+          "label": "街機尺寸鼓面"
+        },
+        {
+          "value": "1000 Hz",
+          "label": "USB 輪詢率"
+        },
+        {
+          "value": "3 mm",
+          "label": "鍍鋅鋼板"
+        },
+        {
+          "value": "8",
+          "label": "控制器模式"
+        },
+        {
+          "value": "12 mm",
+          "label": "樺木合板"
+        },
+        {
+          "value": "40 mm",
+          "label": "加寬鼓邊（Ka）板"
+        },
+        {
+          "value": "128×64",
+          "label": "內建 OLED"
+        },
+        {
+          "value": "0",
+          "label": "需要安裝的軟體"
+        },
+        {
+          "value": "MIDI",
+          "label": "USB 鼓模式"
+        },
+        {
+          "value": "100%",
+          "label": "開源"
+        },
+        {
+          "value": "義大利",
+          "label": "設計與組裝"
+        }
+      ]
+    },
+    "specSheet": {
+      "heading": "規格",
+      "rows": [
+        {
+          "label": "材質",
+          "value": "12 mm 樺木合板、3 mm 鍍鋅鋼板"
+        },
+        {
+          "label": "腳架",
+          "value": "PETG 3D 列印，4 顆手轉螺絲即可輕鬆拆卸，不需螺絲起子"
+        },
+        {
+          "label": "控制器",
+          "value": "Onigiri-con E-box，128×64 OLED，開源硬體與韌體"
+        },
+        {
+          "label": "輪詢率",
+          "value": "1000 Hz USB"
+        },
+        {
+          "label": "平台",
+          "value": "PC · PS3 · PS4* · Nintendo Switch 1 與 2 · 原廠街機機台 · USB MIDI"
+        }
+      ],
+      "note": "*需自行提供 PS4 金鑰。"
+    },
+    "faq": {
+      "heading": "FAQ",
+      "items": [
+        {
+          "q": "支援哪些平台？",
+          "a": "PC、PS3、PS4、Nintendo Switch 1 與 2，以及原廠街機機台。在 MIDI 模式下，也能在任何音樂軟體中當作 USB MIDI 鼓使用。可從 OLED 選單或網頁設定工具切換模式。"
+        },
+        {
+          "q": "需要安裝軟體嗎？",
+          "a": "不需要。把太鼓切換到鍵盤模式（Keyboard P1 或 P2），接上電腦，再用支援 WebSerial 的瀏覽器（Chrome、Edge、Opera、Firefox）開啟設定工具即可。所有設定也都能從 E-box 上的 OLED 調整。"
+        },
+        {
+          "q": "太鼓會誤判我沒打的打擊，該怎麼辦？",
+          "a": "從 OLED 選單或設定工具的即時監控降低該感應區的靈敏度；即時監控可以看到每個感應區的即時讀數。"
+        },
+        {
+          "q": "Onigiri-con 可以搭配其他太鼓使用嗎？",
+          "a": "可以，它也相容 TaikoForce 與 ZhongTaiko 太鼓。"
+        },
+        {
+          "q": "真的是開源的嗎？",
+          "a": "是的：韌體、硬體與這個設定工具都放在 GitHub 上，你甚至可以自己動手做一台。"
+        }
+      ]
+    },
+    "closing": {
+      "heading": "入手你的",
+      "tagline": "準備好迎接終極太鼓體驗了嗎？"
+    },
+    "tour": {
+      "measure": "Ø 43 cm / 17 in",
+      "compare": {
+        "ours": "ITAIKO",
+        "original": "原廠街機太鼓",
+        "steel": {
+          "ours": "3 mm",
+          "original": "≈ 2 mm"
+        },
+        "birch": {
+          "ours": "12 mm",
+          "original": "≈ 10 mm"
+        },
+        "ka": {
+          "ours": "Ka 40 mm",
+          "original": "Ka ≈ 30 mm"
+        }
+      },
+      "items": [
+        {
+          "eyebrow": "打擊面",
+          "stat": "",
+          "title": "真正的街機橡膠",
+          "body": "鼓面橡膠與街機機台完全相同，帶來 100% 街機手感。"
+        },
+        {
+          "eyebrow": "橡膠之下",
+          "stat": "3 mm",
+          "title": "鍍鋅鋼板",
+          "body": "我們加寬了鋼板，讓連打前所未有地順暢；既然都動手了，也順便把它加厚：鼓棒（幾乎）會自己彈起來。"
+        },
+        {
+          "eyebrow": "鼓身",
+          "stat": "12 mm",
+          "title": "樺木合板",
+          "body": "ITAIKO 的鼓身採用 12 mm 樺木合板，在義大利採購與裁切。結構紮實、密度高，每一擊都回饋乾脆有力的聲音。"
+        },
+        {
+          "eyebrow": "腳架",
+          "stat": "",
+          "title": "附鼓棒架的新腳架",
+          "body": "設計輕巧、組裝方便：只要鎖上或鬆開 4 顆手轉螺絲，完全不需要螺絲起子。",
+          "extra": "正面還能放置你的鼓棒！"
+        }
+      ]
     }
   },
   "configure": {

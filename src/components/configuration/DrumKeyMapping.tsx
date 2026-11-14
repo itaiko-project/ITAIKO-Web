@@ -8,8 +8,9 @@ import { HelpButton } from "@/components/ui/help-modal";
 import { PAD_NAMES, PAD_COLORS } from "@/types";
 import { usePadLabels } from "@/i18n/pad-labels";
 import type { PadName, KeyMappings } from "@/types";
-import { hidToKeyName, browserKeyToHid } from "@/lib/hid-keycodes";
+import { browserKeyToHid } from "@/lib/hid-keycodes";
 import { RotateCcw } from "lucide-react";
+import { KeyGlyph } from "./KeyGlyph";
 
 
 export function DrumKeyMapping() {
@@ -96,14 +97,6 @@ export function DrumKeyMapping() {
           </div>
         </CardHeader>
         <CardContent>
-          {isListening && selectedSlot && (
-            <div className="bg-blue-950/50 border border-blue-500/30 p-3 rounded-md mb-4">
-              <p className="text-sm text-blue-300 text-center font-medium animate-pulse">
-                {t("drumKeyMapping.listeningPrompt", { padLabel: padLabels[selectedSlot.pad] })}
-              </p>
-            </div>
-          )}
-
           <Tabs defaultValue="drumP1" onValueChange={handleTabChange}>
             <TabsList className="w-full">
               {players.map((p) => (
@@ -118,7 +111,6 @@ export function DrumKeyMapping() {
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3 pt-3">
                   {PAD_NAMES.map((pad) => {
                     const value = keyMappings[player.key][pad];
-                    const keyName = hidToKeyName(value);
                     const isActive = isListening && selectedSlot?.player === player.key && selectedSlot?.pad === pad;
 
                     return (
@@ -131,13 +123,13 @@ export function DrumKeyMapping() {
                           border-l-4 border border-border bg-card
                           transition-all duration-150
                           hover:bg-accent/50 disabled:opacity-50 disabled:cursor-not-allowed
-                          ${isActive ? "ring-2 ring-blue-500 border-blue-500" : ""}
+                          ${isActive ? "ring-2 ring-brand border-brand" : ""}
                         `}
                         style={{ borderLeftColor: PAD_COLORS[pad] }}
                       >
                         <span className="text-xs text-muted-foreground">{padLabels[pad]}</span>
-                        <span className={`text-lg font-bold ${isActive ? "text-blue-400 animate-pulse" : ""}`}>
-                          {isActive ? "..." : (keyName || "---")}
+                        <span className={`flex items-center justify-center h-9 min-w-9 px-2 rounded-lg border border-b-4 bg-background text-base font-semibold ${isActive ? "text-brand-ink border-brand animate-pulse" : ""}`}>
+                          {isActive ? "…" : value ? <KeyGlyph code={value} className="size-5" /> : "—"}
                         </span>
                       </button>
                     );
@@ -146,6 +138,10 @@ export function DrumKeyMapping() {
               </TabsContent>
             ))}
           </Tabs>
+          {/* Fixed-height line so the prompt appearing doesn't shift the page */}
+          <p className="mt-3 h-5 text-sm text-brand-ink text-center font-medium">
+            {isListening && selectedSlot && t("drumKeyMapping.listeningPrompt", { padLabel: padLabels[selectedSlot.pad] })}
+          </p>
         </CardContent>
       </Card>
     </div>

@@ -7,6 +7,23 @@
     <link rel="apple-touch-icon" href="/apple-touch-icon-180x180.png">
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>ITAIKO</title>
+    <link rel="preload" href="/PixelifySans-latin.woff2" as="font" type="font/woff2" crossorigin>
+    <script>
+      // Home page only: start downloading the drum model now, in parallel with the scripts, instead of after
+      // they have loaded and run. Same file choice as MODEL_URL in src/components/materials.ts.
+      if (location.pathname === "/" || location.pathname === "/index.html") {
+        var l = document.createElement("link");
+        l.rel = "preload"; l.as = "fetch"; l.crossOrigin = "anonymous";
+        l.href = matchMedia("(max-width: 767px)").matches ? "/iTaiko.mobile.glb" : "/iTaiko.webp.glb";
+        document.head.appendChild(l);
+        // The 3D code's chunks (file names filled in at build time by vite.config.ts; empty in dev).
+        [/*__DRUM_CHUNKS__*/].forEach(function (href) {
+          var m = document.createElement("link");
+          m.rel = "modulepreload"; m.href = href;
+          document.head.appendChild(m);
+        });
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>
