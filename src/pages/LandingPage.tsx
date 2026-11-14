@@ -466,7 +466,7 @@ export function LandingPage() {
               </Link>
             </Button>
             <Button asChild size="sm" className="md:h-9 md:px-4 bg-brand-fill hover:bg-brand-fill-hover text-white border-0">
-              <a href="#">
+              <a href="https://shop.itaiko.com">
                 <ShoppingCart size={16} strokeWidth={1.5} aria-hidden />
                 {t("landing.nav.buy")}
               </a>
@@ -518,7 +518,7 @@ export function LandingPage() {
             </p>
             <p className="serif-body text-sm text-muted-foreground/80 leading-relaxed mt-1 max-w-[30ch]">{t("landing.hero.tagline2")}</p>
             <Button asChild size="lg" className="mt-5 bg-brand-fill hover:bg-brand-fill-hover text-white border-0">
-              <a href="#"><ShoppingCart size={16} strokeWidth={1.5} aria-hidden />{t("landing.cta.buy")}</a>
+              <a href="https://shop.itaiko.com"><ShoppingCart size={16} strokeWidth={1.5} aria-hidden />{t("landing.cta.buy")}</a>
             </Button>
           </div>
 
@@ -566,7 +566,7 @@ export function LandingPage() {
             <p className="serif-body text-2xl text-muted-foreground leading-snug mt-3">{tagline}</p>
             <div className="mt-5 flex gap-3">
               <Button asChild size="lg" className="bg-brand-fill hover:bg-brand-fill-hover text-white border-0">
-                <a href="#"><ShoppingCart size={16} strokeWidth={1.5} aria-hidden />{t("landing.cta.buy")}</a>
+                <a href="https://shop.itaiko.com"><ShoppingCart size={16} strokeWidth={1.5} aria-hidden />{t("landing.cta.buy")}</a>
               </Button>
             </div>
           </div>
@@ -684,7 +684,7 @@ export function LandingPage() {
             <div className="mt-5">{onigiriShots}</div>
             <div className="mt-5 flex flex-wrap gap-3">
               <Button asChild size="lg" className="bg-brand-fill hover:bg-brand-fill-hover text-white border-0">
-                <a href="#"><ShoppingCart size={16} strokeWidth={1.5} aria-hidden />{t("landing.cta.buy")}</a>
+                <a href="https://shop.itaiko.com"><ShoppingCart size={16} strokeWidth={1.5} aria-hidden />{t("landing.cta.buy")}</a>
               </Button>
               {/* The configurator in demo mode, no drum needed. Same outlined button as "Configure your drum". */}
               <Button asChild size="lg" variant="outline">
@@ -732,7 +732,7 @@ export function LandingPage() {
                     <img src="itaiko.png" className="pixelated drag-none shrink-0" alt="ITAIKO" style={{ width: `${logo.w}px`, height: `${logo.h}px` }} />
                   </div>
                   <Button asChild size="lg" className="md:hidden mt-6 w-full max-w-xs h-14 text-lg gap-3 rounded-xl bg-brand-fill hover:bg-brand-fill-hover text-white border-0 shadow-lg shadow-brand/25">
-                    <a href="#"><ShoppingCart className="size-5" strokeWidth={1.5} aria-hidden />{t("landing.cta.buy")}</a>
+                    <a href="https://shop.itaiko.com"><ShoppingCart className="size-5" strokeWidth={1.5} aria-hidden />{t("landing.cta.buy")}</a>
                   </Button>
                   <div className="hidden md:flex mt-6 w-full flex-col lg:flex-row items-start lg:items-center gap-6 lg:gap-10">
                     <div className="min-w-0 max-w-full">
@@ -745,7 +745,7 @@ export function LandingPage() {
                       </div>
                     </div>
                     <Button asChild size="lg" className="flex-shrink-0 h-16 px-10 has-[>svg]:px-9 text-xl gap-3 rounded-xl bg-brand-fill hover:bg-brand-fill-hover text-white border-0 shadow-lg shadow-brand/25">
-                      <a href="#"><ShoppingCart className="size-6" strokeWidth={1.5} aria-hidden />{t("landing.cta.buy")}</a>
+                      <a href="https://shop.itaiko.com"><ShoppingCart className="size-6" strokeWidth={1.5} aria-hidden />{t("landing.cta.buy")}</a>
                     </Button>
                   </div>
                 </div>
