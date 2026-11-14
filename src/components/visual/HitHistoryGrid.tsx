@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useDevice } from "@/context/DeviceContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -18,39 +18,16 @@ type HistoryEvent = {
 export function HitHistoryGrid() {
   const { t } = useTranslation("monitor");
   const padLabels = usePadLabels();
-  const { triggers } = useDevice();
+  const { subscribeHits } = useDevice();
   // History is an array of "events", where each event is a list of pads hit simultaneously
   const [history, setHistory] = useState<HistoryEvent[]>([]);
-  const prevTriggersRef = useRef(triggers);
   const seqRef = useRef(0);
 
-  useLayoutEffect(() => {
-    const prev = prevTriggersRef.current;
-    const current = triggers;
-    
-    const newHits: PadName[] = [];
-    
-    // Check all pads for rising edges
-    for (const pad of PAD_NAMES) {
-        if (current[pad] && !prev[pad]) {
-            newHits.push(pad);
-        }
-    }
-    
-    if (newHits.length > 0) {
-        const newId = ++seqRef.current;
-        setHistory(prevHist => {
-            const nextHist = [...prevHist, { pads: newHits, id: newId }];
-            // Keep only the last HISTORY_LENGTH items
-            if (nextHist.length > HISTORY_LENGTH) {
-                return nextHist.slice(nextHist.length - HISTORY_LENGTH);
-            }
-            return nextHist;
-        });
-    }
-
-    prevTriggersRef.current = current;
-  }, [triggers]);
+  // Record actual input events; visual trigger holds and React batching must not merge hits.
+  useEffect(() => subscribeHits(pads => {
+    const event = { pads, id: ++seqRef.current };
+    setHistory(previous => [...previous, event].slice(-HISTORY_LENGTH));
+  }), [subscribeHits]);
 
   const clearHistory = () => {
       setHistory([]);

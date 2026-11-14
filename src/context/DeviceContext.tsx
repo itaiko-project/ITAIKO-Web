@@ -1,4 +1,4 @@
-import { createContext, useContext, useMemo, useEffect, useRef, useState } from "react";
+import { createContext, useCallback, useContext, useMemo, useEffect, useRef, useState } from "react";
 import type { ReactNode, RefObject } from "react";
 import { useWebSerial } from "@/hooks/useWebSerial";
 import { useDemoSerial } from "@/hooks/useDemoSerial";
@@ -63,6 +63,7 @@ interface DeviceContextValue {
   isStreaming: boolean;
   streamingMode: StreamingMode;
   triggers: TriggerState;
+  subscribeHits: (listener: (pads: PadName[]) => void) => () => void;
   buffers: RefObject<PadBuffers>;
   startStreaming: (mode?: StreamingMode) => Promise<void>;
   stopStreaming: () => Promise<void>;
@@ -107,14 +108,30 @@ export function DeviceProvider({ children }: DeviceProviderProps) {
     isConnected,
   });
 
+  const hitListenersRef = useRef(new Set<(pads: PadName[]) => void>());
+  const subscribeHits = useCallback((listener: (pads: PadName[]) => void) => {
+    hitListenersRef.current.add(listener);
+    return () => { hitListenersRef.current.delete(listener); };
+  }, []);
+  const emitHits = useCallback((pads: PadName[]) => {
+    if (pads.length > 0) hitListenersRef.current.forEach(listener => listener(pads));
+  }, []);
+
   const streaming = useDeviceStreaming({
     sendCommand: serial.sendCommand,
+    onHit: emitHits,
     startReading: serial.startReading,
     stopReading: serial.stopReading,
     isConnected,
   });
 
-  const keyboardTriggers = useKeyboardInput(deviceConfig.config);
+  // Input streaming is authoritative when enabled; the same drum can also send HID keys.
+  const handleKeyboardHit = useCallback((pads: PadName[]) => {
+    if (!streaming.isStreaming || (streaming.streamingMode !== "input" && streaming.streamingMode !== "both")) {
+      emitHits(pads);
+    }
+  }, [emitHits, streaming.isStreaming, streaming.streamingMode]);
+  const keyboardTriggers = useKeyboardInput(deviceConfig.config, handleKeyboardHit);
 
   const triggers = useMemo(() => ({
     kaLeft: streaming.triggers.kaLeft || keyboardTriggers.kaLeft,
@@ -251,6 +268,7 @@ export function DeviceProvider({ children }: DeviceProviderProps) {
       isStreaming: streaming.isStreaming,
       streamingMode: streaming.streamingMode,
       triggers,
+      subscribeHits,
       buffers: streaming.buffers,
       startStreaming: streaming.startStreaming,
       stopStreaming: streaming.stopStreaming,
@@ -270,7 +288,7 @@ export function DeviceProvider({ children }: DeviceProviderProps) {
         setModalOpen,
       },
     }),
-    [serial, deviceConfig, streaming, isConnected, isReady, firmwareUpdate, modalOpen]
+    [serial, deviceConfig, streaming, isConnected, isReady, firmwareUpdate, modalOpen, subscribeHits, triggers]
   );
 
   return (

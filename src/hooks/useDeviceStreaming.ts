@@ -8,6 +8,7 @@ interface UseDeviceStreamingProps {
   startReading: (onData: (line: string) => void) => void;
   stopReading: () => void;
   isConnected: boolean;
+  onHit: (pads: PadName[]) => void;
 }
 
 // Simple trigger state - just 4 booleans
@@ -74,6 +75,7 @@ export function useDeviceStreaming({
   startReading,
   stopReading,
   isConnected,
+  onHit,
 }: UseDeviceStreamingProps): UseDeviceStreamingReturn {
   const [isStreaming, setIsStreaming] = useState(false);
   const [streamingMode, setStreamingMode] = useState<StreamingMode>('none');
@@ -82,6 +84,8 @@ export function useDeviceStreaming({
 
   const buffersRef = useRef<PadBuffers>(createPadBuffers(DEFAULT_BUFFER_SIZE));
   const previousRawRef = useRef<Record<PadName, number>>({ kaLeft: 0, donLeft: 0, donRight: 0, kaRight: 0 });
+
+  const previousInputsRef = useRef<TriggerState>(INITIAL_TRIGGERS);
 
   // Accumulate triggers between UI frames
   const accumulatedTriggersRef = useRef<TriggerState>({ kaLeft: false, donLeft: false, donRight: false, kaRight: false });
@@ -116,6 +120,9 @@ export function useDeviceStreaming({
 
     // Process Inputs
     if (inputs) {
+        const hits = PAD_NAMES.filter(pad => inputs[pad] && !previousInputsRef.current[pad]);
+        previousInputsRef.current = inputs;
+        if (hits.length > 0) onHit(hits);
         PAD_NAMES.forEach(pad => {
             if (inputs![pad]) accumulated[pad] = true;
         });
@@ -159,7 +166,7 @@ export function useDeviceStreaming({
       accumulated.donRight = false;
       accumulated.kaRight = false;
     }
-  }, []);
+  }, [onHit]);
 
   const startStreamingFn = useCallback(async (mode: StreamingMode = 'raw'): Promise<void> => {
     if (!isConnected || streamingMode === mode) return;
@@ -174,6 +181,7 @@ export function useDeviceStreaming({
       if (mode === 'raw' || mode === 'both') await sendCommand(DeviceCommandValues.START_STREAMING);
       if (mode === 'input' || mode === 'both') await sendCommand(DeviceCommandValues.START_INPUT_STREAMING);
       
+      previousInputsRef.current = INITIAL_TRIGGERS;
       setStreamingMode(mode);
       setIsStreaming(true);
       startReading(handleStreamData);
@@ -204,6 +212,7 @@ export function useDeviceStreaming({
       buffer.delta.fill(0);
       accumulatedTriggersRef.current[pad] = false;
     });
+    previousInputsRef.current = INITIAL_TRIGGERS;
     setTriggers(INITIAL_TRIGGERS);
     previousRawRef.current = { kaLeft: 0, donLeft: 0, donRight: 0, kaRight: 0 };
     lastFrameUpdateRef.current = 0;

@@ -1,5 +1,5 @@
-import { useState, useEffect, useMemo } from "react";
-import type { DeviceConfig } from "@/types";
+import { useState, useEffect, useMemo, useLayoutEffect, useRef } from "react";
+import { PAD_NAMES, type DeviceConfig, type PadName } from "@/types";
 import type { TriggerState } from "@/hooks/useDeviceStreaming";
 import { browserKeyToHid } from "@/lib/hid-keycodes";
 
@@ -7,8 +7,11 @@ const INITIAL_TRIGGERS: TriggerState = { kaLeft: false, donLeft: false, donRight
 // A quick tap can go down and up between two repaints and never light anything. Hold every press at least this long.
 const MIN_PRESS_MS = 80;
 
-export function useKeyboardInput(config: DeviceConfig) {
+export function useKeyboardInput(config: DeviceConfig, onHit: (pads: PadName[]) => void) {
   const [activeKeys, setActiveKeys] = useState<Set<number>>(new Set());
+
+  const inputRef = useRef({ config, onHit });
+  useLayoutEffect(() => { inputRef.current = { config, onHit }; }, [config, onHit]);
 
   useEffect(() => {
     const pressedAt = new Map<number, number>();
@@ -29,6 +32,11 @@ export function useKeyboardInput(config: DeviceConfig) {
         window.clearTimeout(pendingRelease.get(hid)); // pressed again before a short tap's release fired
         pendingRelease.delete(hid);
         pressedAt.set(hid, performance.now());
+        const { config, onHit } = inputRef.current;
+        const km = config.keyMappings;
+        if (km) {
+          onHit(PAD_NAMES.filter(pad => km.drumP1[pad] === hid || km.drumP2[pad] === hid));
+        }
         setActiveKeys(prev => {
           const next = new Set(prev);
           next.add(hid);
