@@ -1,6 +1,6 @@
 import { Link, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 import { DeviceProvider } from "@/context/DeviceContext";
 import { HeaderConnectionStatus } from "@/components/connection/HeaderConnectionStatus";
 import { FirmwareUpdatePanel } from "@/components/connection/FirmwareUpdatePanel";
@@ -17,6 +17,42 @@ import { Activity, ChevronRight } from "lucide-react";
 
 // Initialize help content
 initializeHelpContent();
+
+function getPixelRatio() {
+  return window.devicePixelRatio || 1;
+}
+
+function subscribeToPixelRatio(onChange: () => void) {
+  let query = window.matchMedia(`(resolution: ${getPixelRatio()}dppx)`);
+  const update = () => {
+    query.removeEventListener("change", update);
+    query = window.matchMedia(`(resolution: ${getPixelRatio()}dppx)`);
+    query.addEventListener("change", update);
+    onChange();
+  };
+  query.addEventListener("change", update);
+  window.addEventListener("resize", onChange);
+  return () => {
+    query.removeEventListener("change", update);
+    window.removeEventListener("resize", onChange);
+  };
+}
+
+function ConfiguratorLogo() {
+  const pixelRatio = useSyncExternalStore(subscribeToPixelRatio, getPixelRatio);
+  // Give each source pixel an integer number of physical pixels, even at fractional zoom.
+  const scale = Math.max(1, Math.floor(pixelRatio)) / pixelRatio;
+  return (
+    <img
+      src="/itaiko.png"
+      alt="ITAIKO"
+      width={128}
+      height={64}
+      style={{ width: 128 * scale, height: 64 * scale }}
+      className="pixelated drag-none shrink-0"
+    />
+  );
+}
 
 function ConfigurePageContent() {
   const { t } = useTranslation("pages");
@@ -49,7 +85,7 @@ function ConfigurePageContent() {
                 ZhongTaiko <span className="text-muted-foreground font-normal">×</span>
               </span>
             )}
-            <img src="/itaiko.png" className="pixelated drag-none w-28 sm:w-36 h-auto" alt="ITAIKO" />
+            <ConfiguratorLogo />
           </Link>
           <div className="sm:ml-auto">
             <LanguageSwitcher />
@@ -90,7 +126,7 @@ function ConfigurePageContent() {
       </main>
       <footer className="seigaiha-footer border-t py-5 flex justify-center">
         <Link to="/" className="rounded-sm focus-visible:outline-2 focus-visible:outline-brand focus-visible:outline-offset-4">
-          <img src="/itaiko.png" alt="ITAIKO" className="pixelated drag-none w-24 h-auto" />
+          <ConfiguratorLogo />
         </Link>
       </footer>
     </div>
