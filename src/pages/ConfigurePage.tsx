@@ -9,7 +9,7 @@ import { ConfigurationTab } from "@/components/configuration/ConfigurationTab";
 import { LiveMonitorTab } from "@/components/monitor/LiveMonitorTab";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import { SiteNavActions } from "@/components/SiteNavActions";
 import { useDevice } from "@/context/DeviceContext";
 import { initializeHelpContent } from "@/lib/help-content";
 import { isZhongTaiko } from "@/lib/edition";
@@ -75,10 +75,10 @@ function ConfigurePageContent() {
   };
 
   return (
-    <div className="configure-page min-h-svh flex flex-col w-full serif-body">
+    <div className="configure-page min-h-svh flex flex-col w-full">
       <FirmwareUpdateModal />
       <header className="w-full bg-background/95 border-b">
-        <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 px-4 md:gap-x-8 md:px-8 py-3">
+        <div className="flex items-center justify-between px-4 md:px-8 py-3">
           <Link to="/" className="flex flex-wrap items-center gap-2 rounded-sm focus-visible:outline-2 focus-visible:outline-brand focus-visible:outline-offset-4">
             {showZhongTaiko && (
               <span className="font-extrabold tracking-tight text-lg sm:text-xl whitespace-nowrap">
@@ -87,14 +87,11 @@ function ConfigurePageContent() {
             )}
             <ConfiguratorLogo header />
           </Link>
-          <div className="ml-auto flex items-center md:gap-8">
-            <LanguageSwitcher />
-          </div>
-          <div className="flex basis-full justify-end md:basis-auto"><HeaderConnectionStatus /></div>
+          <SiteNavActions />
         </div>
       </header>
 
-      <main className="flex-1 px-4 sm:px-6 w-full max-w-5xl mx-auto pt-8 sm:pt-10 pb-12 sm:pb-16 flex flex-col gap-6">
+      <main className="serif-body flex-1 px-4 sm:px-6 w-full max-w-5xl mx-auto pt-8 sm:pt-10 pb-12 sm:pb-16 flex flex-col gap-6">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <h1 className="display-font text-4xl sm:text-5xl leading-none">
             {t("landing.cta.configure")}
@@ -105,6 +102,7 @@ function ConfigurePageContent() {
           </div>
         </div>
 
+        <div className="flex justify-end"><HeaderConnectionStatus /></div>
         <FirmwareUpdatePanel />
         <ConfigurationTab />
 

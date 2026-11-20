@@ -3,7 +3,7 @@ import type { TourStop } from "@/components/DrumViewer";
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
-import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import { SiteNavActions } from "@/components/SiteNavActions";
 import { getRememberedEdition, isZhongTaiko } from "@/lib/edition";
 import { ChevronDown, ShoppingCart, Wrench } from "lucide-react";
 
@@ -463,23 +463,7 @@ export function LandingPage() {
               style={{ width: `${logo.w}px`, height: `${logo.h}px` }}
             />
           </Link>
-          <div className="flex items-center gap-3 md:gap-8">
-            <LanguageSwitcher />
-            {/* Configure stays a clear button, but outlined: Shop is the one filled, blue action up here. Not on phones:
-                the configurator talks to the drum over WebSerial, which mobile browsers don't have. */}
-            <Button asChild size="sm" variant="outline" className="hidden md:inline-flex md:h-9 md:px-4">
-              <Link to="/configure" aria-label={t("landing.cta.configure")}>
-                <Wrench size={16} strokeWidth={1.5} aria-hidden />
-                <span className="hidden md:inline">{t("landing.cta.configure")}</span>
-              </Link>
-            </Button>
-            <Button asChild size="sm" className="md:h-9 md:px-4 bg-brand-fill hover:bg-brand-fill-hover text-white border-0">
-              <a href="https://shop.itaiko.com/pages/shop">
-                <ShoppingCart size={16} strokeWidth={1.5} aria-hidden />
-                {t("landing.nav.buy")}
-              </a>
-            </Button>
-          </div>
+          <SiteNavActions />
         </nav>
       </div>
 
