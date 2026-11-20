@@ -38,10 +38,10 @@ function subscribeToPixelRatio(onChange: () => void) {
   };
 }
 
-function ConfiguratorLogo() {
+function ConfiguratorLogo({ header = false }: { header?: boolean }) {
   const pixelRatio = useSyncExternalStore(subscribeToPixelRatio, getPixelRatio);
   // Give each source pixel an integer number of physical pixels, even at fractional zoom.
-  const scale = Math.max(1, Math.floor(pixelRatio)) / pixelRatio;
+  const scale = (header ? Math.ceil(pixelRatio) : Math.max(1, Math.floor(pixelRatio))) / pixelRatio;
   return (
     <img
       src="/itaiko.png"
@@ -77,20 +77,20 @@ function ConfigurePageContent() {
   return (
     <div className="configure-page min-h-svh flex flex-col w-full serif-body">
       <FirmwareUpdateModal />
-      <header className="border-b w-full">
-        <div className="grid grid-cols-[1fr_auto] sm:flex min-h-18 items-center justify-between gap-4 sm:gap-8 px-4 md:px-8 py-3 w-full">
-          <Link to="/" className="shrink-0 flex items-center gap-2 rounded-sm focus-visible:outline-2 focus-visible:outline-brand focus-visible:outline-offset-4">
+      <header className="w-full bg-background/95 border-b">
+        <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 px-4 md:gap-x-8 md:px-8 py-3">
+          <Link to="/" className="flex flex-wrap items-center gap-2 rounded-sm focus-visible:outline-2 focus-visible:outline-brand focus-visible:outline-offset-4">
             {showZhongTaiko && (
               <span className="font-extrabold tracking-tight text-lg sm:text-xl whitespace-nowrap">
                 ZhongTaiko <span className="text-muted-foreground font-normal">×</span>
               </span>
             )}
-            <ConfiguratorLogo />
+            <ConfiguratorLogo header />
           </Link>
-          <div className="sm:ml-auto">
+          <div className="ml-auto flex items-center md:gap-8">
             <LanguageSwitcher />
           </div>
-          <div className="col-span-2 flex justify-end"><HeaderConnectionStatus /></div>
+          <div className="flex basis-full justify-end md:basis-auto"><HeaderConnectionStatus /></div>
         </div>
       </header>
 
